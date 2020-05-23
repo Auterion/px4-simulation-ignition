@@ -21,6 +21,11 @@
 
 #include "gazebo_mavlink_interface.h"
 
+#include <ignition/plugin/Register.hh>
+
+namespace gazebo_mavlink_interface
+{
+
 GazeboMavlinkInterface::GazeboMavlinkInterface()
 {
 }
@@ -46,12 +51,6 @@ void GazeboMavlinkInterface::PostUpdate(const ignition::gazebo::UpdateInfo &_inf
 {
   ignmsg << "SampleSystem::PostUpdate" << std::endl;
 }
-
+}
 // Register plugin
-IGNITION_ADD_PLUGIN(MyPlugin,
-                    ignition::gazebo::System,
-                    MyPlugin::ISystemConfigure,
-                    MyPlugin::ISystemPostUpdate)
-// Add plugin alias so that we can refer to the plugin without the version
-// namespace
-IGNITION_ADD_PLUGIN_ALIAS(MyPlugin,"ignition::gazebo::systems::MyPlugin")
+IGNITION_ADD_PLUGIN(gazebo_mavlink_interface::GazeboMavlinkInterface, ignition::gazebo::System, gazebo_mavlink_interface::GazeboMavlinkInterface::ISystemPostUpdate)

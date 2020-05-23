@@ -52,6 +52,8 @@
 #include <ignition/math.hh>
 #include <sdf/sdf.hh>
 
+namespace gazebo_mavlink_interface
+{
 class GazeboMavlinkInterface:
   // This class is a system.
   public ignition::gazebo::System,
@@ -72,3 +74,4 @@ class GazeboMavlinkInterface:
     void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
               const ignition::gazebo::EntityComponentManager &_ecm) override;
 };
+}
