@@ -214,6 +214,10 @@
         <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
         <motorType>velocity</motorType>
       </plugin>
+     <plugin
+        filename="libmavlink_sitl_ign_gazebo.so"
+        name="gazebo_mavlink_interface::GazebMavlinkInterface">
+      </plugin>
     </include>
   </world>
 </sdf>
