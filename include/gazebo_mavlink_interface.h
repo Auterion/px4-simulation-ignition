@@ -55,20 +55,10 @@
 
 #include <mavlink/v2.0/common/mavlink.h>
 #include "msgbuffer.h"
+#include "mavlink_interface.h"
 
-static const uint32_t kDefaultMavlinkUdpPort = 14560;
-static const uint32_t kDefaultMavlinkTcpPort = 4560;
-static const uint32_t kDefaultQGCUdpPort = 14550;
-static const uint32_t kDefaultSDKUdpPort = 14540;
 
 using lock_guard = std::lock_guard<std::recursive_mutex>;
-static constexpr auto kDefaultDevice = "/dev/ttyACM0";
-static constexpr auto kDefaultBaudRate = 921600;
-
-
-//! Maximum buffer size with padding for CRC bytes (280 + padding)
-static constexpr ssize_t MAX_SIZE = MAVLINK_MAX_PACKET_LEN + 16;
-static constexpr size_t MAX_TXQ_SIZE = 1000;
 
 //! Default distance sensor model joint naming
 static const std::regex kDefaultLidarModelLinkNaming("(lidar|sf10a)(.*::link)");
@@ -88,24 +78,6 @@ static const std::string kDefaultGPSTopic = "/gps";
 static const std::string kDefaultVisionTopic = "/vision_odom";
 static const std::string kDefaultMagTopic = "/mag";
 static const std::string kDefaultBarometerTopic = "/baro";
-
-//! Rx packer framing status. (same as @p mavlink::mavlink_framing_t)
-enum class Framing : uint8_t {
-	incomplete = MAVLINK_FRAMING_INCOMPLETE,
-	ok = MAVLINK_FRAMING_OK,
-	bad_crc = MAVLINK_FRAMING_BAD_CRC,
-	bad_signature = MAVLINK_FRAMING_BAD_SIGNATURE,
-};
-
-
-//! Enumeration to use on the bitmask in HIL_SENSOR
-enum class SensorSource {
-  ACCEL		= 0b111,
-  GYRO		= 0b111000,
-  MAG		= 0b111000000,
-  BARO		= 0b1101000000000,
-  DIFF_PRESS	= 0b10000000000,
-};
 
 namespace mavlink_interface
 {
@@ -127,6 +99,7 @@ namespace mavlink_interface
     public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
                 const ignition::gazebo::EntityComponentManager &_ecm) override;
     private:
+      std::shared_ptr<MavlinkInterface> mavlink_interface_;
       bool received_first_actuator_;
       Eigen::VectorXd input_reference_;
 
@@ -148,27 +121,10 @@ namespace mavlink_interface
       bool send_odometry_;
 
       void ImuCallback(const ignition::msgs::IMU &_msg);
-      void send_mavlink_message(const mavlink_message_t *message);
-      void forward_mavlink_message(const mavlink_message_t *message);
-      void handle_message(mavlink_message_t *msg, bool &received_actuator);
-      void acceptConnections();
-      void pollForMAVLinkMessages();
-      void pollFromQgcAndSdk();
       void SendSensorMessages();
       void SendGroundTruth();
       void handle_control(double _dt);
       bool IsRunning();
-
-
-      // Serial interface
-      void open();
-      void close();
-      void do_read();
-      void parse_buffer(const boost::system::error_code& err, std::size_t bytes_t);
-      void do_write(bool check_tx_state);
-      inline bool is_open(){
-        return serial_dev.is_open();
-      }
 
       static const unsigned n_out_max = 16;
 
@@ -217,67 +173,17 @@ namespace mavlink_interface
       double pressure_alt_;
       double abs_pressure_;
 
-      std::default_random_engine random_generator_;
-      std::normal_distribution<float> standard_normal_distribution_;
-
-      struct sockaddr_in local_simulator_addr_;
-      socklen_t local_simulator_addr_len_;
-      struct sockaddr_in remote_simulator_addr_;
-      socklen_t remote_simulator_addr_len_;
-
-      int qgc_udp_port_;
-      struct sockaddr_in remote_qgc_addr_;
-      socklen_t remote_qgc_addr_len_;
-      struct sockaddr_in local_qgc_addr_;
-      socklen_t local_qgc_addr_len_;
-
-      int sdk_udp_port_;
-      struct sockaddr_in remote_sdk_addr_;
-      socklen_t remote_sdk_addr_len_;
-      struct sockaddr_in local_sdk_addr_;
-      socklen_t local_sdk_addr_len_;
-
-      unsigned char _buf[65535];
-      enum FD_TYPES {
-        LISTEN_FD,
-        CONNECTION_FD,
-        N_FDS
-      };
-      struct pollfd fds_[N_FDS];
       bool use_tcp_ = false;
       bool close_conn_ = false;
 
       double optflow_distance;
       double sonar_distance;
 
-      in_addr_t mavlink_addr_;
-      int mavlink_udp_port_; // MAVLink refers to the PX4 simulator interface here
-      int mavlink_tcp_port_; // MAVLink refers to the PX4 simulator interface here
-
-      int simulator_socket_fd_;
-      int simulator_tcp_client_fd_;
-
-      int qgc_socket_fd_ {-1};
-      int sdk_socket_fd_ {-1};
-
       bool enable_lockstep_ = false;
+      bool serial_enabled_;
       double speed_factor_ = 1.0;
       int64_t previous_imu_seq_ = 0;
       unsigned update_skip_factor_ = 1;
-
-      // Serial interface
-      mavlink_status_t m_status;
-      mavlink_message_t m_buffer;
-      bool serial_enabled_;
-      std::thread io_thread;
-      std::string device_;
-      std::array<uint8_t, MAX_SIZE> rx_buf;
-      std::recursive_mutex mutex;
-      unsigned int baudrate_;
-      std::atomic<bool> tx_in_progress;
-      std::deque<gazebo::MsgBuffer> tx_q;
-      boost::asio::io_service io_service;
-      boost::asio::serial_port serial_dev;
 
       bool hil_mode_;
       bool hil_state_level_;

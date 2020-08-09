@@ -19,7 +19,7 @@ include_directories(
   ${MAVLINK_INCLUDE_DIRS}
 )
 
-add_library(mavlink_sitl_ign_gazebo SHARED src/gazebo_mavlink_interface.cpp)
+add_library(mavlink_sitl_ign_gazebo SHARED src/gazebo_mavlink_interface.cpp src/mavlink_interface.cpp)
 set_property(TARGET mavlink_sitl_ign_gazebo PROPERTY CXX_STANDARD 17)
 target_link_libraries(mavlink_sitl_ign_gazebo
   PRIVATE ${Boost_LIBRARIES}
