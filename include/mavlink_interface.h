@@ -90,15 +90,18 @@ public:
     void open();
     void close();
     void Load();
-    void SendSensorMessages(int time_usec, Eigen::Vector3d accel_b, Eigen::Vector3d gyro_b);
+    void SendSensorMessages(int time_usec);
     void UpdateBarometer(double temperature, double abs_pressure, double pressure_alt);
     void UpdateDiffpressure(double diff_pressure);
+    void UpdateIMU(Eigen::Vector3d accel_b, Eigen::Vector3d gyro_b);
     void UpdateMag(Eigen::Vector3d mag_b);
     Eigen::VectorXd GetActuatorControls();
     bool GetArmedState();
     bool GetReceivedFirstActuator();
     void SetSerialEnabled(bool serial_enabled);
     void SetUseTcp(bool use_tcp);
+    void SetBaudrate(int baudrate);
+    void SetDevice(std::string device);
     void SetEnableLockstep(bool enable_lockstep);
     void SetHILMode(bool hil_mode);
     void SetHILStateLevel(bool hil_state_level);
@@ -197,12 +200,15 @@ private:
     bool baro_updated_;
     bool diff_press_updated_;
     bool mag_updated_;
+    bool imu_updated_;
 
     double temperature_;
     double pressure_alt_;
     double abs_pressure_;
     double diff_pressure_;
     Eigen::Vector3d mag_b_;
+    Eigen::Vector3d accel_b_;
+    Eigen::Vector3d gyro_b_;
 
     std::atomic<bool> gotSigInt_ {false};
 };
