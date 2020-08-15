@@ -214,19 +214,24 @@ void MavlinkInterface::Load()
   }
 }
 
-void MavlinkInterface::SendSensorMessages(int time_usec, Eigen::Vector3d accel_b, Eigen::Vector3d gyro_b) {
+void MavlinkInterface::SendSensorMessages(int time_usec) {
 
   mavlink_hil_sensor_t sensor_msg;
 
   sensor_msg.time_usec = time_usec;
-  sensor_msg.xacc = accel_b[0];
-  sensor_msg.yacc = accel_b[1];
-  sensor_msg.zacc = accel_b[2];
-  sensor_msg.xgyro = gyro_b[0];
-  sensor_msg.ygyro = gyro_b[1];
-  sensor_msg.zgyro = gyro_b[2];
 
-  sensor_msg.fields_updated = (uint16_t)SensorSource::ACCEL | (uint16_t)SensorSource::GYRO;
+  if (imu_updated_) {
+    sensor_msg.xacc = accel_b_[0];
+    sensor_msg.yacc = accel_b_[1];
+    sensor_msg.zacc = accel_b_[2];
+    sensor_msg.xgyro = gyro_b_[0];
+    sensor_msg.ygyro = gyro_b_[1];
+    sensor_msg.zgyro = gyro_b_[2];
+
+    sensor_msg.fields_updated = (uint16_t)SensorSource::ACCEL | (uint16_t)SensorSource::GYRO;
+
+    imu_updated_ = false;
+  }
 
   // send only mag data
   if (mag_updated_) {
@@ -275,6 +280,13 @@ void MavlinkInterface::UpdateDiffpressure(double diff_pressure) {
   diff_pressure_ = diff_pressure;
 
   diff_press_updated_ = true;
+}
+
+void MavlinkInterface::UpdateIMU(Eigen::Vector3d accel_b, Eigen::Vector3d gyro_b) {
+  accel_b_ = accel_b;
+  gyro_b_ = gyro_b;
+
+  imu_updated_ = true;
 }
 
 void MavlinkInterface::UpdateMag(Eigen::Vector3d mag_b) {
@@ -686,12 +698,20 @@ bool MavlinkInterface::GetArmedState() {
   return armed_;
 }
 
+void MavlinkInterface::SetBaudrate(int baudrate) {
+  int baudrate_ = baudrate;
+}
+
 void MavlinkInterface::SetSerialEnabled(bool serial_enabled) {
   serial_enabled_ = serial_enabled;
 }
 
 void MavlinkInterface::SetUseTcp(bool use_tcp) {
   use_tcp_ = use_tcp;
+}
+
+void MavlinkInterface::SetDevice(std::string device) {
+  device_ = device;
 }
 
 void MavlinkInterface::SetEnableLockstep(bool enable_lockstep) {
