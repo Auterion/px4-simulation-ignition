@@ -77,14 +77,12 @@ GazeboMavlinkInterface::GazeboMavlinkInterface() :
 
 GazeboMavlinkInterface::~GazeboMavlinkInterface() {
   mavlink_interface_->close();
-  // sigIntConnection_->~Connection();
-  // updateConnection_->~Connection();
 }
 
 void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
       const std::shared_ptr<const sdf::Element> &_sdf,
       ignition::gazebo::EntityComponentManager &_ecm,
-      ignition::gazebo::EventManager &/*_eventMgr*/) {
+      ignition::gazebo::EventManager &_em) {
 
   namespace_.clear();
   if (_sdf->HasElement("robotNamespace")) {
@@ -308,14 +306,8 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
 //     presetManager->SetCurrentProfileParam("real_time_update_rate", real_time_update_rate);
   }
 
-  // Listen to the update event. This event is broadcast every
-  // simulation iteration.
-  // updateConnection_ = event::Events::ConnectWorldUpdateBegin(
-  //     boost::bind(&GazeboMavlinkInterface::OnUpdate, this, _1));
-
   // // Listen to Ctrl+C / SIGINT.
-  // sigIntConnection_ = event::Events::ConnectSigInt(
-  //     boost::bind(&GazeboMavlinkInterface::onSigInt, this));
+  sigIntConnection_ = _em.Connect<ignition::gazebo::events::Stop>(std::bind(&GazeboMavlinkInterface::onSigInt, this));
 
   // Subscribe to messages of other plugins.
   node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/imu_sensor/imu", &GazeboMavlinkInterface::ImuCallback, this);
@@ -727,4 +719,8 @@ bool GazeboMavlinkInterface::IsRunning()
 //     return world_->GetRunning();
 // #endif
   return true; //TODO;
+}
+
+void GazeboMavlinkInterface::onSigInt() {
+  mavlink_interface_->onSigInt();
 }

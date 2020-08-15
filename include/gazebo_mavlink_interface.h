@@ -48,6 +48,8 @@
 #include <netinet/in.h>
 
 #include <ignition/gazebo/System.hh>
+#include <ignition/gazebo/Events.hh>
+#include <ignition/gazebo/EventManager.hh>
 #include <ignition/transport/Node.hh>
 #include <ignition/msgs/imu.pb.h>
 
@@ -99,6 +101,7 @@ namespace mavlink_interface
     public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
                 const ignition::gazebo::EntityComponentManager &_ecm) override;
     private:
+      ignition::common::ConnectionPtr sigIntConnection_;
       std::shared_ptr<MavlinkInterface> mavlink_interface_;
       bool received_first_actuator_;
       Eigen::VectorXd input_reference_;
@@ -124,6 +127,7 @@ namespace mavlink_interface
       void SendSensorMessages();
       void SendGroundTruth();
       void handle_control(double _dt);
+      void onSigInt();
       bool IsRunning();
 
       static const unsigned n_out_max = 16;
