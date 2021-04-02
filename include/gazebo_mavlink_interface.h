@@ -47,6 +47,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <ignition/common4/ignition/common.hh>
 #include <ignition/gazebo/System.hh>
 #include <ignition/gazebo/Events.hh>
 #include <ignition/gazebo/EventManager.hh>
@@ -90,11 +91,11 @@ namespace mavlink_interface
     public ignition::gazebo::ISystemPostUpdate
   {
     public: GazeboMavlinkInterface();
- 
+
     public: ~GazeboMavlinkInterface() override;
-    public: void Configure(const ignition::gazebo::Entity &_entity, 
-                            const std::shared_ptr<const sdf::Element> &_sdf, 
-                            ignition::gazebo::EntityComponentManager &_ecm, 
+    public: void Configure(const ignition::gazebo::Entity &_entity,
+                            const std::shared_ptr<const sdf::Element> &_sdf,
+                            ignition::gazebo::EntityComponentManager &_ecm,
                             ignition::gazebo::EventManager &/*_eventMgr*/);
     public: void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
                 ignition::gazebo::EntityComponentManager &_ecm);
@@ -117,7 +118,7 @@ namespace mavlink_interface
       bool use_elevator_pid_;
       bool use_left_elevon_pid_;
       bool use_right_elevon_pid_;
-      
+
       bool vehicle_is_tailsitter_;
 
       bool send_vision_estimation_;
@@ -139,7 +140,7 @@ namespace mavlink_interface
       double zero_position_disarmed_[n_out_max];
       double zero_position_armed_[n_out_max];
       int input_index_[n_out_max];
-      
+
       /// \brief Ignition communication node.
       ignition::transport::Node node;
 
