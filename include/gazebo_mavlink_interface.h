@@ -51,6 +51,18 @@
 #include <ignition/gazebo/System.hh>
 #include <ignition/gazebo/Events.hh>
 #include <ignition/gazebo/EventManager.hh>
+#include <ignition/gazebo/Model.hh>
+#include <ignition/gazebo/Util.hh>
+#include <ignition/gazebo/components/AngularVelocity.hh>
+#include <ignition/gazebo/components/Imu.hh>
+#include <ignition/gazebo/components/JointForceCmd.hh>
+#include <ignition/gazebo/components/JointPosition.hh>
+#include <ignition/gazebo/components/JointVelocity.hh>
+#include <ignition/gazebo/components/JointVelocityCmd.hh>
+#include <ignition/gazebo/components/LinearVelocity.hh>
+#include <ignition/gazebo/components/Name.hh>
+#include <ignition/gazebo/components/Pose.hh>
+
 #include <ignition/transport/Node.hh>
 #include <ignition/msgs/imu.pb.h>
 
@@ -84,7 +96,7 @@ static const std::string kDefaultBarometerTopic = "/baro";
 
 namespace mavlink_interface
 {
-  class GazeboMavlinkInterface:
+  class IGNITION_GAZEBO_VISIBLE GazeboMavlinkInterface:
     public ignition::gazebo::System,
     public ignition::gazebo::ISystemConfigure,
     public ignition::gazebo::ISystemPreUpdate,
@@ -104,28 +116,28 @@ namespace mavlink_interface
     private:
       ignition::common::ConnectionPtr sigIntConnection_;
       std::shared_ptr<MavlinkInterface> mavlink_interface_;
-      bool received_first_actuator_;
+      bool received_first_actuator_{false};
       Eigen::VectorXd input_reference_;
 
-      float protocol_version_;
+      ignition::gazebo::Entity entity_{ignition::gazebo::kNullEntity};
+      ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
+      ignition::gazebo::Entity modelLink_{ignition::gazebo::kNullEntity};
+      std::string model_name_;
 
-      std::string namespace_;
-      std::string motor_velocity_reference_pub_topic_;
+      float protocol_version_{2.0};
+
+      std::string namespace_{kDefaultNamespace};
+      std::string motor_velocity_reference_pub_topic_{kDefaultMotorVelocityReferencePubTopic};
       std::string mavlink_control_sub_topic_;
       std::string link_name_;
 
-      bool use_propeller_pid_;
-      bool use_elevator_pid_;
-      bool use_left_elevon_pid_;
-      bool use_right_elevon_pid_;
-
-      bool vehicle_is_tailsitter_;
-
-      bool send_vision_estimation_;
-      bool send_odometry_;
+      bool use_propeller_pid_{false};
+      bool use_elevator_pid_{false};
+      bool use_left_elevon_pid_{false};
+      bool use_right_elevon_pid_{false};
 
       void ImuCallback(const ignition::msgs::IMU &_msg);
-      void SendSensorMessages();
+      void SendSensorMessages(const ignition::gazebo::UpdateInfo &_info);
       void SendGroundTruth();
       void handle_control(double _dt);
       void onSigInt();
@@ -144,29 +156,28 @@ namespace mavlink_interface
       /// \brief Ignition communication node.
       ignition::transport::Node node;
 
-      std::string imu_sub_topic_;
-      std::string opticalFlow_sub_topic_;
-      std::string irlock_sub_topic_;
-      std::string gps_sub_topic_;
+      std::string opticalFlow_sub_topic_{kDefaultOpticalFlowTopic};
+      std::string irlock_sub_topic_{kDefaultIRLockTopic};
+      std::string gps_sub_topic_{kDefaultGPSTopic};
       std::string groundtruth_sub_topic_;
-      std::string vision_sub_topic_;
-      std::string mag_sub_topic_;
-      std::string baro_sub_topic_;
+      std::string vision_sub_topic_{kDefaultVisionTopic};
+      std::string mag_sub_topic_{kDefaultMagTopic};
+      std::string baro_sub_topic_{kDefaultBarometerTopic};
 
       std::mutex last_imu_message_mutex_ {};
-      std::condition_variable last_imu_message_cond_ {};
-      ignition::msgs::IMU last_imu_message_;
-      ignition::common::Time last_time_;
-      ignition::common::Time last_imu_time_;
-      ignition::common::Time last_actuator_time_;
 
-      bool mag_updated_;
+      ignition::msgs::IMU last_imu_message_;
+      std::chrono::steady_clock::duration last_imu_time_{0};
+      std::chrono::steady_clock::duration lastControllerUpdateTime{0};
+      std::chrono::steady_clock::duration last_actuator_time_{0};
+
+      bool mag_updated_{false};
       bool baro_updated_;
       bool diff_press_updated_;
 
-      double groundtruth_lat_rad;
-      double groundtruth_lon_rad;
-      double groundtruth_altitude;
+      double groundtruth_lat_rad{0.0};
+      double groundtruth_lon_rad{0.0};
+      double groundtruth_altitude{0.0};
 
       double imu_update_interval_ = 0.004; ///< Used for non-lockstep
 
@@ -190,8 +201,8 @@ namespace mavlink_interface
       int64_t previous_imu_seq_ = 0;
       unsigned update_skip_factor_ = 1;
 
-      bool hil_mode_;
-      bool hil_state_level_;
+      bool hil_mode_{false};
+      bool hil_state_level_{false};
 
       std::atomic<bool> gotSigInt_ {false};
   };

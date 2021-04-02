@@ -4,7 +4,7 @@
  * Copyright 2015 Mina Kamel, ASL, ETH Zurich, Switzerland
  * Copyright 2015 Janosch Nikolic, ASL, ETH Zurich, Switzerland
  * Copyright 2015 Markus Achtelik, ASL, ETH Zurich, Switzerland
- * Copyright 2015-2018 PX4 Development Team
+ * Copyright 2015-2021 PX4 Development Team
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,45 +32,11 @@ IGNITION_ADD_PLUGIN(
 using namespace mavlink_interface;
 
 GazeboMavlinkInterface::GazeboMavlinkInterface() : 
-    received_first_actuator_(false),
-    namespace_(kDefaultNamespace),
-    protocol_version_(2.0),
-    motor_velocity_reference_pub_topic_(kDefaultMotorVelocityReferencePubTopic),
-    use_propeller_pid_(false),
-    use_elevator_pid_(false),
-    use_left_elevon_pid_(false),
-    use_right_elevon_pid_(false),
-    vehicle_is_tailsitter_(false),
-    send_vision_estimation_(false),
-    send_odometry_(false),
-    imu_sub_topic_(kDefaultImuTopic),
-    opticalFlow_sub_topic_(kDefaultOpticalFlowTopic),
-    irlock_sub_topic_(kDefaultIRLockTopic),
-    gps_sub_topic_(kDefaultGPSTopic),
-    vision_sub_topic_(kDefaultVisionTopic),
-    mag_sub_topic_(kDefaultMagTopic),
-    baro_sub_topic_(kDefaultBarometerTopic),
-    // sensor_map_ {},
-    // model_ {},
-    // world_(nullptr),
-    // left_elevon_joint_(nullptr),
-    // right_elevon_joint_(nullptr),
-    // elevator_joint_(nullptr),
-    // propeller_joint_(nullptr),
-    // gimbal_yaw_joint_(nullptr),
-    // gimbal_pitch_joint_(nullptr),
-    // gimbal_roll_joint_(nullptr),
     input_offset_ {},
     input_scaling_ {},
     zero_position_disarmed_ {},
     zero_position_armed_ {},
-    input_index_ {},
-    mag_updated_(false),
-    groundtruth_lat_rad(0.0),
-    groundtruth_lon_rad(0.0),
-    groundtruth_altitude(0.0),
-    hil_mode_(false),
-    hil_state_level_(false)
+    input_index_ {}
     {
       mavlink_interface_ = std::make_shared<MavlinkInterface>();
     }
@@ -95,12 +61,8 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
     protocol_version_ = _sdf->Get<float>("protocol_version");
   }
 
-//   node_handle_ = transport::NodePtr(new transport::Node());
-//   node_handle_->Init(namespace_);
-
   gazebo::getSdfParam<std::string>(_sdf, "motorSpeedCommandPubTopic", motor_velocity_reference_pub_topic_,
       motor_velocity_reference_pub_topic_);
-  gazebo::getSdfParam<std::string>(_sdf, "imuSubTopic", imu_sub_topic_, imu_sub_topic_);
   gazebo::getSdfParam<std::string>(_sdf, "gpsSubTopic", gps_sub_topic_, gps_sub_topic_);
   gazebo::getSdfParam<std::string>(_sdf, "visionSubTopic", vision_sub_topic_, vision_sub_topic_);
   gazebo::getSdfParam<std::string>(_sdf, "opticalFlowSubTopic",
@@ -112,107 +74,6 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
 
   // set input_reference_ from inputs.control
   input_reference_.resize(n_out_max);
-  // joints_.resize(n_out_max);
-  // pids_.resize(n_out_max);
-  // joint_max_errors_.resize(n_out_max);
-//   for (int i = 0; i < n_out_max; ++i)
-//   {
-//     pids_[i].Init(0, 0, 0, 0, 0, 0, 0);
-//     input_reference_[i] = 0;
-//   }
-
-//   if (_sdf->HasElement("control_channels")) {
-//     sdf::ElementPtr control_channels = _sdf->GetElement("control_channels");
-//     sdf::ElementPtr channel = control_channels->GetElement("channel");
-//     while (channel)
-//     {
-//       if (channel->HasElement("input_index"))
-//       {
-//         int index = channel->Get<int>("input_index");
-//         if (index < n_out_max)
-//         {
-//           input_offset_[index] = channel->Get<double>("input_offset");
-//           input_scaling_[index] = channel->Get<double>("input_scaling");
-//           zero_position_disarmed_[index] = channel->Get<double>("zero_position_disarmed");
-//           zero_position_armed_[index] = channel->Get<double>("zero_position_armed");
-//           if (channel->HasElement("joint_control_type"))
-//           {
-//             joint_control_type_[index] = channel->Get<std::string>("joint_control_type");
-//           }
-//           else
-//           {
-//             gzwarn << "joint_control_type[" << index << "] not specified, using velocity.\n";
-//             joint_control_type_[index] = "velocity";
-//           }
-
-//           // start gz transport node handle
-//           if (joint_control_type_[index] == "position_gztopic")
-//           {
-//             // setup publisher handle to topic
-//             if (channel->HasElement("gztopic"))
-//               gztopic_[index] = "~/" + model_->GetName() + channel->Get<std::string>("gztopic");
-//             else
-//               gztopic_[index] = "control_position_gztopic_" + std::to_string(index);
-// #if GAZEBO_MAJOR_VERSION > 7 || (GAZEBO_MAJOR_VERSION == 7 && GAZEBO_MINOR_VERSION >= 4)
-//             /// only gazebo 7.4 and above support Any
-//             joint_control_pub_[index] = node_handle_->Advertise<gazebo::msgs::Any>(
-//                 gztopic_[index]);
-// #else
-//             joint_control_pub_[index] = node_handle_->Advertise<gazebo::msgs::GzString>(
-//                 gztopic_[index]);
-// #endif
-//           }
-
-//           if (channel->HasElement("joint_name"))
-//           {
-//             std::string joint_name = channel->Get<std::string>("joint_name");
-//             joints_[index] = model_->GetJoint(joint_name);
-//           }
-
-//           // setup joint control pid to control joint
-//           if (channel->HasElement("joint_control_pid"))
-//           {
-//             sdf::ElementPtr pid = channel->GetElement("joint_control_pid");
-//             double p = 0;
-//             if (pid->HasElement("p"))
-//               p = pid->Get<double>("p");
-//             double i = 0;
-//             if (pid->HasElement("i"))
-//               i = pid->Get<double>("i");
-//             double d = 0;
-//             if (pid->HasElement("d"))
-//               d = pid->Get<double>("d");
-//             double iMax = 0;
-//             if (pid->HasElement("iMax"))
-//               iMax = pid->Get<double>("iMax");
-//             double iMin = 0;
-//             if (pid->HasElement("iMin"))
-//               iMin = pid->Get<double>("iMin");
-//             double cmdMax = 0;
-//             if (pid->HasElement("cmdMax"))
-//               cmdMax = pid->Get<double>("cmdMax");
-//             double cmdMin = 0;
-//             if (pid->HasElement("cmdMin"))
-//               cmdMin = pid->Get<double>("cmdMin");
-//             if (pid->HasElement("errMax")) {
-//               joint_max_errors_[index] = pid->Get<double>("errMax");
-//             }
-//             pids_[index].Init(p, i, d, iMax, iMin, cmdMax, cmdMin);
-//           }
-//         }
-//         else
-//         {
-//           gzerr << "input_index[" << index << "] out of range, not parsing.\n";
-//         }
-//       }
-//       else
-//       {
-//         gzerr << "no input_index, not parsing.\n";
-//         break;
-//       }
-//       channel = channel->GetNextElement("channel");
-//     }
-//   }
 
   if(_sdf->HasElement("hil_mode"))
   {
@@ -265,45 +126,6 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
     }
     ignmsg << "Speed factor set to: " << speed_factor_ << "\n";
 
-    // boost::any param;
-// #if GAZEBO_MAJOR_VERSION >= 8
-//     physics::PresetManagerPtr presetManager = world_->PresetMgr();
-// #else
-//     physics::PresetManagerPtr presetManager = world_->GetPresetManager();
-// #endif
-//     presetManager->CurrentProfile("default_physics");
-
-//     // We currently need to have the real_time_update_rate at a multiple of 250 Hz for lockstep.
-//     // Also, the max_step_size needs to match this (e.g. 0.004 s at 250 Hz or 0.002 s at 500 Hz).
-//     // Therefore we check these params and abort if they won't work.
-
-//     presetManager->GetCurrentProfileParam("real_time_update_rate", param);
-//     double real_time_update_rate = boost::any_cast<double>(param);
-//     const int real_time_update_rate_int = static_cast<int>(real_time_update_rate + 0.5);
-
-//     if (real_time_update_rate_int % 250 != 0)
-//     {
-//       gzerr << "real_time_update_rate is " << real_time_update_rate_int
-//             << " but needs to be multiple of 250 Hz, absorting.\n";
-//       abort();
-//     }
-
-//     presetManager->GetCurrentProfileParam("max_step_size", param);
-//     const double max_step_size = boost::any_cast<double>(param);
-//     if (1.0 / real_time_update_rate != max_step_size)
-//     {
-//       gzerr << "max_step_size of " << max_step_size
-//             << " s does not match real_time_update_rate of "
-//             << real_time_update_rate << ", aborting.\n";
-//       abort();
-//     }
-
-//     update_skip_factor_ = real_time_update_rate_int / 250;
-
-//     // Adapt the real_time_update_rate according to the speed
-//     // that we ask for in the env variable.
-//     real_time_update_rate *= speed_factor_;
-//     presetManager->SetCurrentProfileParam("real_time_update_rate", real_time_update_rate);
   }
 
   // // Listen to Ctrl+C / SIGINT.
@@ -311,34 +133,9 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
 
   // Subscribe to messages of other plugins.
   node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/imu_sensor/imu", &GazeboMavlinkInterface::ImuCallback, this);
-//   imu_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + imu_sub_topic_, &GazeboMavlinkInterface::ImuCallback, this);
-//   opticalFlow_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + opticalFlow_sub_topic_, &GazeboMavlinkInterface::OpticalFlowCallback, this);
-//   irlock_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + irlock_sub_topic_, &GazeboMavlinkInterface::IRLockCallback, this);
-//   gps_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + gps_sub_topic_, &GazeboMavlinkInterface::GpsCallback, this);
-//   groundtruth_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + groundtruth_sub_topic_, &GazeboMavlinkInterface::GroundtruthCallback, this);
-//   vision_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + vision_sub_topic_, &GazeboMavlinkInterface::VisionCallback, this);
-//   mag_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + mag_sub_topic_, &GazeboMavlinkInterface::MagnetometerCallback, this);
-//   baro_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + baro_sub_topic_, &GazeboMavlinkInterface::BarometerCallback, this);
-
-//   // Get the model links
-//   auto links = model_->GetLinks();
-
-//   // Create subscriptions to the distance sensors
-//   CreateSensorSubscription(&GazeboMavlinkInterface::LidarCallback, this, links);
-//   CreateSensorSubscription(&GazeboMavlinkInterface::SonarCallback, this, links);
 
 //   // Publish gazebo's motor_speed message
 //   motor_velocity_reference_pub_ = node_handle_->Advertise<mav_msgs::msgs::CommandMotorSpeed>("~/" + model_->GetName() + motor_velocity_reference_pub_topic_, 1);
-
-// #if GAZEBO_MAJOR_VERSION >= 9
-//   last_time_ = world_->SimTime();
-//   last_imu_time_ = world_->SimTime();
-//   gravity_W_ = world_->Gravity();
-// #else
-//   last_time_ = world_->GetSimTime();
-//   last_imu_time_ = world_->GetSimTime();
-//   gravity_W_ = ignitionFromGazeboMath(world_->GetPhysicsEngine()->GetGravity());
-// #endif
 
   // This doesn't seem to be used anywhere but we leave it here
   // for potential compatibility
@@ -352,12 +149,6 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
       mavlink_interface_->SetMavlinkAddr(mavlink_addr_str);
     }
   }
-
-// #if GAZEBO_MAJOR_VERSION >= 9
-//   auto worldName = world_->Name();
-// #else
-//   auto worldName = world_->GetName();
-// #endif
 
   int mavlink_udp_port;
   if (_sdf->HasElement("mavlink_udp_port")) {
@@ -377,12 +168,12 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
   if (_sdf->HasElement("qgc_addr")) {
     std::string qgc_addr = _sdf->Get<std::string>("qgc_addr");
     if (qgc_addr != "INADDR_ANY") {
-      mavlink_interface_->SetQgcAddr(qgc_addr);
+      mavlink_interface_->SetGcsAddr(qgc_addr);
     }
   }
   if (_sdf->HasElement("qgc_udp_port")) {
     int qgc_udp_port = _sdf->Get<int>("qgc_udp_port");
-    mavlink_interface_->SetQgcUdpPort(qgc_udp_port);
+    mavlink_interface_->SetGcsUdpPort(qgc_udp_port);
   }
 
   if (_sdf->HasElement("sdk_addr")) {
@@ -408,16 +199,6 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
     }
   }
 
-  if(_sdf->HasElement("send_vision_estimation"))
-  {
-    send_vision_estimation_ = _sdf->Get<bool>("send_vision_estimation");
-  }
-
-  if(_sdf->HasElement("send_odometry"))
-  {
-    send_odometry_ = _sdf->Get<bool>("send_odometry");
-  }
-
   mavlink_status_t* chan_state = mavlink_get_channel_status(MAVLINK_COMM_0);
 
   // set the Mavlink protocol version to use on the link
@@ -433,17 +214,16 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
     ignerr << "Unkown protocol version! Using v" << protocol_version_ << "by default \n";
   }
   mavlink_interface_->Load();
+
+  entity_ = _entity;
+  model_ = ignition::gazebo::Model(_entity);
+  model_name_ = model_.Name(_ecm);
 }
 
 void GazeboMavlinkInterface::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
   ignition::gazebo::EntityComponentManager &_ecm) {
-  std::unique_lock<std::mutex> lock(last_imu_message_mutex_);
+  const std::lock_guard<std::mutex> lock(last_imu_message_mutex_);
 
-  if (previous_imu_seq_ > 0) {
-    // while (previous_imu_seq_ == last_imu_message_.seq() && IsRunning()) {
-      last_imu_message_cond_.wait_for(lock, std::chrono::milliseconds(10));
-    // }
-  }
 
 //   previous_imu_seq_ = last_imu_message_.seq();
 
@@ -451,25 +231,19 @@ void GazeboMavlinkInterface::PreUpdate(const ignition::gazebo::UpdateInfo &_info
   if (!(previous_imu_seq_ % update_skip_factor_ == 0)) {
     return;
   }
-
-// #if GAZEBO_MAJOR_VERSION >= 9
-//   common::Time current_time = world_->SimTime();
-// #else
-//   common::Time current_time = world_->GetSimTime();
-// #endif
-//   double dt = (current_time - last_time_).Double();
+  
   double dt;
 
   bool close_conn_ = false;
 
   if (hil_mode_) {
-    mavlink_interface_->pollFromQgcAndSdk();
+    mavlink_interface_->pollFromGcsAndSdk();
   } else {
     mavlink_interface_->pollForMAVLinkMessages();
   }
 
   // Always send Gyro and Accel data at full rate (= sim update rate)
-  SendSensorMessages();
+  SendSensorMessages(_info);
 
   // Send groudntruth at full rate
   SendGroundTruth();
@@ -483,13 +257,13 @@ void GazeboMavlinkInterface::PreUpdate(const ignition::gazebo::UpdateInfo &_info
   if (received_first_actuator_) {
     // mav_msgs::msgs::CommandMotorSpeed turning_velocities_msg;
 
-    for (int i = 0; i < input_reference_.size(); i++) {
-      if (last_actuator_time_ == 0 || dt > 0.2) {
+    // for (int i = 0; i < input_reference_.size(); i++) {
+      // if (last_actuator_time_ == 0 || dt > 0.2) {
         // turning_velocities_msg.add_motor_speed(0);
-      } else {
+      // } else {
         // turning_velocities_msg.add_motor_speed(input_reference_[i]);
-      }
-    }
+      // }
+    // }
     // TODO Add timestamp and Header
     // turning_velocities_msg->header.stamp.sec = current_time.sec;
     // turning_velocities_msg->header.stamp.nsec = current_time.nsec;
@@ -504,20 +278,12 @@ void GazeboMavlinkInterface::PostUpdate(const ignition::gazebo::UpdateInfo &_inf
 }
 
 void GazeboMavlinkInterface::ImuCallback(const ignition::msgs::IMU &_msg) {
-  std::unique_lock<std::mutex> lock(last_imu_message_mutex_);
-
-  // const int64_t diff = imu_message->seq() - last_imu_message_.seq();
-  // if (diff != 1 && imu_message->seq() != 0)
-  // {
-  //   gzerr << "Skipped " << (diff - 1) << " IMU samples (presumably CPU usage is too high)\n";
-  // }
-
+  const std::lock_guard<std::mutex> lock(last_imu_message_mutex_);
   last_imu_message_ = _msg;
-  lock.unlock();
-  last_imu_message_cond_.notify_one();
+
 }
 
-void GazeboMavlinkInterface::SendSensorMessages() {
+void GazeboMavlinkInterface::SendSensorMessages(const ignition::gazebo::UpdateInfo &_info) {
   ignition::math::Quaterniond q_gr = ignition::math::Quaterniond(
     last_imu_message_.orientation().w(),
     last_imu_message_.orientation().x(),
@@ -526,10 +292,9 @@ void GazeboMavlinkInterface::SendSensorMessages() {
 
   bool should_send_imu = false;
   if (!enable_lockstep_) {
-//     ignition::common::Time current_time = world_->SimTime();
-       ignition::common::Time current_time; //TODO: How do you get current time?
+    std::chrono::steady_clock::duration current_time = _info.simTime;
 
-    double dt = (current_time - last_imu_time_).Double();
+    double dt = (current_time - last_imu_time_).count();
 
     if (imu_update_interval_!=0 && dt >= imu_update_interval_) {
       should_send_imu = true;
@@ -537,8 +302,7 @@ void GazeboMavlinkInterface::SendSensorMessages() {
     }
   }
 
-  mavlink_hil_sensor_t sensor_msg;
-//   sensor_msg.time_usec = world_->SimTime().Double() * 1e6;
+  int time_usec = std::chrono::duration_cast<std::chrono::duration<int>>(_info.simTime * 1e6).count();
 
   // send always accel and gyro data (not dependent of the bitmask)
   // required so to keep the timestamps on sync and the lockstep can
@@ -553,35 +317,12 @@ void GazeboMavlinkInterface::SendSensorMessages() {
     last_imu_message_.angular_velocity().y(),
     last_imu_message_.angular_velocity().z()));
 
-  sensor_msg.xacc = accel_b.X();
-  sensor_msg.yacc = accel_b.Y();
-  sensor_msg.zacc = accel_b.Z();
-  sensor_msg.xgyro = gyro_b.X();
-  sensor_msg.ygyro = gyro_b.Y();
-  sensor_msg.zgyro = gyro_b.Z();
+  SensorData::Imu imu_data;
+  imu_data.accel_b = Eigen::Vector3d(accel_b.X(), accel_b.Y(), accel_b.Z());
+  imu_data.gyro_b = Eigen::Vector3d(gyro_b.X(), gyro_b.Y(), gyro_b.Z());
+  mavlink_interface_->UpdateIMU(imu_data);
 
-  // sensor_msg.fields_updated = SensorSource::ACCEL | SensorSource::GYRO;
-
-  // send only mag data
-  if (mag_updated_) {
-    ignition::math::Quaterniond q_gb = q_gr*q_br.Inverse();
-    ignition::math::Quaterniond q_nb = q_ng*q_gb;
-
-    ignition::math::Vector3d mag_b = q_nb.RotateVectorReverse(mag_n_);
-
-    sensor_msg.xmag = mag_b.X();
-    sensor_msg.ymag = mag_b.Y();
-    sensor_msg.zmag = mag_b.Z();
-    // sensor_msg.fields_updated = sensor_msg.fields_updated | SensorSource::MAG;
-
-    mag_updated_ = false;
-  }
-
-  if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
-    mavlink_message_t msg;
-    mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-    mavlink_interface_->send_mavlink_message(&msg);
-  }
+  mavlink_interface_->SendSensorMessages(time_usec);
 }
 
 void GazeboMavlinkInterface::SendGroundTruth()
@@ -653,71 +394,12 @@ void GazeboMavlinkInterface::SendGroundTruth()
 void GazeboMavlinkInterface::handle_control(double _dt)
 {
   // set joint positions
-  for (int i = 0; i < input_reference_.size(); i++) {
-    // if (joints_[i]) {
-    //   double target = input_reference_[i];
-    //   if (joint_control_type_[i] == "velocity")
-    //   {
-//         double current = joints_[i]->GetVelocity(0);
-//         double err = current - target;
-//         double force = pids_[i].Update(err, _dt);
-//         joints_[i]->SetForce(0, force);
-      // }
-      // else if (joint_control_type_[i] == "position")
-      // {
-
-// #if GAZEBO_MAJOR_VERSION >= 9
-//         double current = joints_[i]->Position(0);
-// #else
-//         double current = joints_[i]->GetAngle(0).Radian();
-// #endif
-
-//         double err = current - target;
-//         err = std::max(std::min(err, 0.2), -0.2);
-//         double force = pids_[i].Update(err, _dt);
-//         joints_[i]->SetForce(0, force);
-//       }
-//       else if (joint_control_type_[i] == "position_gztopic")
-//       {
-//      #if GAZEBO_MAJOR_VERSION > 7 || (GAZEBO_MAJOR_VERSION == 7 && GAZEBO_MINOR_VERSION >= 4)
-//         /// only gazebo 7.4 and above support Any
-//         gazebo::msgs::Any m;
-//         m.set_type(gazebo::msgs::Any_ValueType_DOUBLE);
-//         m.set_double_value(target);
-//      #else
-//         std::stringstream ss;
-//         gazebo::msgs::GzString m;
-//         ss << target;
-//         m.set_data(ss.str());
-//      #endif
-//         joint_control_pub_[i]->Publish(m);
-//       }
-//       else if (joint_control_type_[i] == "position_kinematic")
-//       {
-//         /// really not ideal if your drone is moving at all,
-//         /// mixing kinematic updates with dynamics calculation is
-//         /// non-physical.
-//      #if GAZEBO_MAJOR_VERSION >= 6
-//         joints_[i]->SetPosition(0, input_reference_[i]);
-//      #else
-//         joints_[i]->SetAngle(0, input_reference_[i]);
-//      #endif
-//       }
-//       else
-//       {
-//         gzerr << "joint_control_type[" << joint_control_type_[i] << "] undefined.\n";
-//       }
-    // }
-  }
+  // for (int i = 0; i < input_reference_.size(); i++) {
+  // }
 }
 
 bool GazeboMavlinkInterface::IsRunning()
 {
-// #if GAZEBO_MAJOR_VERSION >= 8
-//     return world_->Running();
-// #else
-//     return world_->GetRunning();
-// #endif
   return true; //TODO;
 }
 
