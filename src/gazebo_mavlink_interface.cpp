@@ -252,25 +252,14 @@ void GazeboMavlinkInterface::PreUpdate(const ignition::gazebo::UpdateInfo &_info
     mavlink_interface_->close();
   }
 
+  handle_actuator_controls(_info);
+
   handle_control(dt);
+  // std::cout << input_reference_.transpose() << std::endl;
 
   if (received_first_actuator_) {
-    // mav_msgs::msgs::CommandMotorSpeed turning_velocities_msg;
-
-    // for (int i = 0; i < input_reference_.size(); i++) {
-      // if (last_actuator_time_ == 0 || dt > 0.2) {
-        // turning_velocities_msg.add_motor_speed(0);
-      // } else {
-        // turning_velocities_msg.add_motor_speed(input_reference_[i]);
-      // }
-    // }
-    // TODO Add timestamp and Header
-    // turning_velocities_msg->header.stamp.sec = current_time.sec;
-    // turning_velocities_msg->header.stamp.nsec = current_time.nsec;
-
-    // motor_velocity_reference_pub_->Publish(turning_velocities_msg);
+    PublishRotorVelocities(_ecm, input_reference_);
   }
-
 }
 
 void GazeboMavlinkInterface::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
@@ -391,6 +380,30 @@ void GazeboMavlinkInterface::SendGroundTruth()
   }
 }
 
+void GazeboMavlinkInterface::handle_actuator_controls(const ignition::gazebo::UpdateInfo &_info) {
+  bool armed = mavlink_interface_->GetArmedState();
+
+  last_actuator_time_ = _info.simTime;
+
+  for (unsigned i = 0; i < n_out_max; i++) {
+    input_index_[i] = i;
+  }
+  // Read Input References
+  input_reference_.resize(n_out_max);
+
+  Eigen::VectorXd actuator_controls = mavlink_interface_->GetActuatorControls();
+  if (actuator_controls.size() < n_out_max) return; //TODO: Handle this properly
+  for (int i = 0; i < input_reference_.size(); i++) {
+    if (armed) {
+      input_reference_[i] = (actuator_controls[input_index_[i]] + input_offset_[i])
+          * input_scaling_[i] + zero_position_armed_[i];
+    } else {
+      input_reference_[i] = zero_position_disarmed_[i];
+    }
+  }
+  received_first_actuator_ = mavlink_interface_->GetReceivedFirstActuator();
+}
+
 void GazeboMavlinkInterface::handle_control(double _dt)
 {
   // set joint positions
@@ -405,4 +418,42 @@ bool GazeboMavlinkInterface::IsRunning()
 
 void GazeboMavlinkInterface::onSigInt() {
   mavlink_interface_->onSigInt();
+}
+
+// The following snippet was copied from https://github.com/ignitionrobotics/ign-gazebo/blob/ign-gazebo4/src/systems/multicopter_control/MulticopterVelocityControl.cc
+void GazeboMavlinkInterface::PublishRotorVelocities(
+    ignition::gazebo::EntityComponentManager &_ecm,
+    const Eigen::VectorXd &_vels)
+{
+  if (_vels.size() != rotor_velocity_message_.velocity_size())
+  {
+    rotor_velocity_message_.mutable_velocity()->Resize(_vels.size(), 0);
+  }
+  for (int i = 0; i < _vels.size(); ++i)
+  {
+    rotor_velocity_message_.set_velocity(i, _vels(i));
+  }
+  // Publish the message by setting the Actuators component on the model entity.
+  // This assumes that the MulticopterMotorModel system is attached to this
+  // model
+  auto actuatorMsgComp =
+      _ecm.Component<ignition::gazebo::components::Actuators>(model_.Entity());
+
+  if (actuatorMsgComp)
+  {
+    auto compFunc = [](const ignition::msgs::Actuators &_a, const ignition::msgs::Actuators &_b)
+    {
+      return std::equal(_a.velocity().begin(), _a.velocity().end(),
+                        _b.velocity().begin());
+    };
+    auto state = actuatorMsgComp->SetData(this->rotor_velocity_message_, compFunc)
+                     ? ignition::gazebo::ComponentState::PeriodicChange
+                     : ignition::gazebo::ComponentState::NoChange;
+    _ecm.SetChanged(model_.Entity(), ignition::gazebo::components::Actuators::typeId, state);
+  }
+  else
+  {
+    _ecm.CreateComponent(model_.Entity(),
+                         ignition::gazebo::components::Actuators(this->rotor_velocity_message_));
+  }
 }

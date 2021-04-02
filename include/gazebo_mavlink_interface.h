@@ -53,6 +53,7 @@
 #include <ignition/gazebo/EventManager.hh>
 #include <ignition/gazebo/Model.hh>
 #include <ignition/gazebo/Util.hh>
+#include "ignition/gazebo/components/Actuators.hh"
 #include <ignition/gazebo/components/AngularVelocity.hh>
 #include <ignition/gazebo/components/Imu.hh>
 #include <ignition/gazebo/components/JointForceCmd.hh>
@@ -139,6 +140,9 @@ namespace mavlink_interface
       void ImuCallback(const ignition::msgs::IMU &_msg);
       void SendSensorMessages(const ignition::gazebo::UpdateInfo &_info);
       void SendGroundTruth();
+      void PublishRotorVelocities(ignition::gazebo::EntityComponentManager &_ecm,
+          const Eigen::VectorXd &_vels);
+      void handle_actuator_controls(const ignition::gazebo::UpdateInfo &_info);
       void handle_control(double _dt);
       void onSigInt();
       bool IsRunning();
@@ -167,6 +171,8 @@ namespace mavlink_interface
       std::mutex last_imu_message_mutex_ {};
 
       ignition::msgs::IMU last_imu_message_;
+      ignition::msgs::Actuators rotor_velocity_message_;
+
       std::chrono::steady_clock::duration last_imu_time_{0};
       std::chrono::steady_clock::duration lastControllerUpdateTime{0};
       std::chrono::steady_clock::duration last_actuator_time_{0};
