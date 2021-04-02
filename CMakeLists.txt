@@ -7,7 +7,7 @@ find_package(Boost 1.58 REQUIRED COMPONENTS system thread filesystem)
 
 find_package(ignition-cmake2 REQUIRED)
 find_package(ignition-plugin1 REQUIRED COMPONENTS register)
-find_package(ignition-gazebo3 REQUIRED)
+find_package(ignition-gazebo5 REQUIRED)
 
 find_package(MAVLink)
 
@@ -24,4 +24,4 @@ set_property(TARGET mavlink_sitl_ign_gazebo PROPERTY CXX_STANDARD 17)
 target_link_libraries(mavlink_sitl_ign_gazebo
   PRIVATE ${Boost_LIBRARIES}
   PRIVATE ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
-  PRIVATE ignition-gazebo3::ignition-gazebo3)
+  PRIVATE ignition-gazebo5::ignition-gazebo5)
