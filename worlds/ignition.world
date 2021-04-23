@@ -218,6 +218,10 @@
         <motorType>velocity</motorType>
       </plugin>
       <plugin
+        filename="libgazebo_barometer_plugin.so"
+        name="barometer_plugin::BarometerPlugin">
+      </plugin>
+      <plugin
           filename="libmavlink_sitl_ign_gazebo.so"
           name="mavlink_interface::GazeboMavlinkInterface">
                 <robotNamespace/>
