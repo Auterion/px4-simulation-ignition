@@ -66,6 +66,7 @@
 
 #include <ignition/transport/Node.hh>
 #include <ignition/msgs/imu.pb.h>
+#include <msgs/Pressure.pb.h>
 
 #include <common.h>
 
@@ -138,6 +139,7 @@ namespace mavlink_interface
       bool use_right_elevon_pid_{false};
 
       void ImuCallback(const ignition::msgs::IMU &_msg);
+      void BarometerCallback(const sensor_msgs::msgs::Pressure &_msg);
       void SendSensorMessages(const ignition::gazebo::UpdateInfo &_info);
       void SendGroundTruth();
       void PublishRotorVelocities(ignition::gazebo::EntityComponentManager &_ecm,
@@ -187,7 +189,7 @@ namespace mavlink_interface
 
       double imu_update_interval_ = 0.004; ///< Used for non-lockstep
 
-      ignition::math::Vector3d gravity_W_;
+      ignition::math::Vector3d gravity_W_{ignition::math::Vector3d(0.0, 0.0, -9.8)};
       ignition::math::Vector3d velocity_prev_W_;
       ignition::math::Vector3d mag_n_;
 

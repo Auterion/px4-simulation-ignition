@@ -133,6 +133,7 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
 
   // Subscribe to messages of other plugins.
   node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/imu_sensor/imu", &GazeboMavlinkInterface::ImuCallback, this);
+  node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/barometer", &GazeboMavlinkInterface::BarometerCallback, this);
 
 //   // Publish gazebo's motor_speed message
 //   motor_velocity_reference_pub_ = node_handle_->Advertise<mav_msgs::msgs::CommandMotorSpeed>("~/" + model_->GetName() + motor_velocity_reference_pub_topic_, 1);
@@ -270,6 +271,15 @@ void GazeboMavlinkInterface::ImuCallback(const ignition::msgs::IMU &_msg) {
   const std::lock_guard<std::mutex> lock(last_imu_message_mutex_);
   last_imu_message_ = _msg;
 
+}
+
+void GazeboMavlinkInterface::BarometerCallback(const sensor_msgs::msgs::Pressure &_msg) {
+  const std::lock_guard<std::mutex> lock(last_imu_message_mutex_);
+  SensorData::Barometer baro_data;
+  baro_data.temperature = _msg.temperature();
+  baro_data.abs_pressure = _msg.absolute_pressure();
+  baro_data.pressure_alt = _msg.pressure_altitude();
+  mavlink_interface_->UpdateBarometer(baro_data);
 }
 
 void GazeboMavlinkInterface::SendSensorMessages(const ignition::gazebo::UpdateInfo &_info) {
