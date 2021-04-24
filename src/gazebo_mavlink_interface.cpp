@@ -134,6 +134,7 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
   // Subscribe to messages of other plugins.
   node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/imu_sensor/imu", &GazeboMavlinkInterface::ImuCallback, this);
   node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/barometer", &GazeboMavlinkInterface::BarometerCallback, this);
+  node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/magnetometer", &GazeboMavlinkInterface::MagnetometerCallback, this);
 
 //   // Publish gazebo's motor_speed message
 //   motor_velocity_reference_pub_ = node_handle_->Advertise<mav_msgs::msgs::CommandMotorSpeed>("~/" + model_->GetName() + motor_velocity_reference_pub_topic_, 1);
@@ -280,6 +281,14 @@ void GazeboMavlinkInterface::BarometerCallback(const sensor_msgs::msgs::Pressure
   baro_data.abs_pressure = _msg.absolute_pressure();
   baro_data.pressure_alt = _msg.pressure_altitude();
   mavlink_interface_->UpdateBarometer(baro_data);
+}
+
+void GazeboMavlinkInterface::MagnetometerCallback(const sensor_msgs::msgs::MagneticField &_msg) {
+  const std::lock_guard<std::mutex> lock(last_imu_message_mutex_);
+  SensorData::Magnetometer mag_data;
+  mag_data.mag_b = Eigen::Vector3d(_msg.magnetic_field().x(),
+    _msg.magnetic_field().y(), _msg.magnetic_field().z());
+  mavlink_interface_->UpdateMag(mag_data);
 }
 
 void GazeboMavlinkInterface::SendSensorMessages(const ignition::gazebo::UpdateInfo &_info) {
