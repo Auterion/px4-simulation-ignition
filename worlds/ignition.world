@@ -222,6 +222,10 @@
         name="barometer_plugin::BarometerPlugin">
       </plugin>
       <plugin
+        filename="libgazebo_magnetometer_plugin.so"
+        name="magnetometer_plugin::MagnetometerPlugin">
+      </plugin>
+      <plugin
           filename="libmavlink_sitl_ign_gazebo.so"
           name="mavlink_interface::GazeboMavlinkInterface">
                 <robotNamespace/>
