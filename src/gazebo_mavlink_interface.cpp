@@ -75,6 +75,13 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
   // set input_reference_ from inputs.control
   input_reference_.resize(n_out_max);
 
+  ///TODO: Parse input reference
+  input_scaling_.resize(n_out_max);
+  input_scaling_(0) = 1000;
+  input_scaling_(1) = 1000;
+  input_scaling_(2) = 1000;
+  input_scaling_(3) = 1000;
+
   if(_sdf->HasElement("hil_mode"))
   {
     hil_mode_ = _sdf->Get<bool>("hil_mode");
@@ -132,12 +139,9 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
   sigIntConnection_ = _em.Connect<ignition::gazebo::events::Stop>(std::bind(&GazeboMavlinkInterface::onSigInt, this));
 
   // Subscribe to messages of other plugins.
-  node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/imu_sensor/imu", &GazeboMavlinkInterface::ImuCallback, this);
+  node.Subscribe("/imu", &GazeboMavlinkInterface::ImuCallback, this);
   node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/barometer", &GazeboMavlinkInterface::BarometerCallback, this);
   node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/magnetometer", &GazeboMavlinkInterface::MagnetometerCallback, this);
-
-//   // Publish gazebo's motor_speed message
-//   motor_velocity_reference_pub_ = node_handle_->Advertise<mav_msgs::msgs::CommandMotorSpeed>("~/" + model_->GetName() + motor_velocity_reference_pub_topic_, 1);
 
   // This doesn't seem to be used anywhere but we leave it here
   // for potential compatibility
@@ -226,9 +230,6 @@ void GazeboMavlinkInterface::PreUpdate(const ignition::gazebo::UpdateInfo &_info
   ignition::gazebo::EntityComponentManager &_ecm) {
   const std::lock_guard<std::mutex> lock(last_imu_message_mutex_);
 
-
-//   previous_imu_seq_ = last_imu_message_.seq();
-
   // Always run at 250 Hz. At 500 Hz, the skip factor should be 2, at 1000 Hz 4.
   if (!(previous_imu_seq_ % update_skip_factor_ == 0)) {
     return;
@@ -257,7 +258,6 @@ void GazeboMavlinkInterface::PreUpdate(const ignition::gazebo::UpdateInfo &_info
   handle_actuator_controls(_info);
 
   handle_control(dt);
-  // std::cout << input_reference_.transpose() << std::endl;
 
   if (received_first_actuator_) {
     PublishRotorVelocities(_ecm, input_reference_);
@@ -324,7 +324,7 @@ void GazeboMavlinkInterface::SendSensorMessages(const ignition::gazebo::UpdateIn
     last_imu_message_.angular_velocity().x(),
     last_imu_message_.angular_velocity().y(),
     last_imu_message_.angular_velocity().z()));
-
+  
   SensorData::Imu imu_data;
   imu_data.accel_b = Eigen::Vector3d(accel_b.X(), accel_b.Y(), accel_b.Z());
   imu_data.gyro_b = Eigen::Vector3d(gyro_b.X(), gyro_b.Y(), gyro_b.Z());
@@ -412,10 +412,11 @@ void GazeboMavlinkInterface::handle_actuator_controls(const ignition::gazebo::Up
 
   Eigen::VectorXd actuator_controls = mavlink_interface_->GetActuatorControls();
   if (actuator_controls.size() < n_out_max) return; //TODO: Handle this properly
+
   for (int i = 0; i < input_reference_.size(); i++) {
     if (armed) {
       input_reference_[i] = (actuator_controls[input_index_[i]] + input_offset_[i])
-          * input_scaling_[i] + zero_position_armed_[i];
+          * input_scaling_(i) + zero_position_armed_[i];
     } else {
       input_reference_[i] = zero_position_disarmed_[i];
     }

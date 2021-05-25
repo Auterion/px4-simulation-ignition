@@ -154,7 +154,7 @@ namespace mavlink_interface
       static const unsigned n_out_max = 16;
 
       double input_offset_[n_out_max];
-      double input_scaling_[n_out_max];
+      Eigen::VectorXd input_scaling_;
       std::string joint_control_type_[n_out_max];
       std::string gztopic_[n_out_max];
       double zero_position_disarmed_[n_out_max];
