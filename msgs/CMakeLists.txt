@@ -5,6 +5,7 @@ set(sensor_msgs
   Pressure.proto
   MagneticField.proto
   Groundtruth.proto
+  SITLGps.proto
   )
 
 PROTOBUF_GENERATE_CPP(SEN_PROTO_SRCS SEN_PROTO_HDRS ${sensor_msgs})

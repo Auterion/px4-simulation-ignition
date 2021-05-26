@@ -142,6 +142,7 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
   node.Subscribe("/imu", &GazeboMavlinkInterface::ImuCallback, this);
   node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/barometer", &GazeboMavlinkInterface::BarometerCallback, this);
   node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/magnetometer", &GazeboMavlinkInterface::MagnetometerCallback, this);
+  node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/gps", &GazeboMavlinkInterface::GpsCallback, this);
 
   // This doesn't seem to be used anywhere but we leave it here
   // for potential compatibility
@@ -291,6 +292,31 @@ void GazeboMavlinkInterface::MagnetometerCallback(const sensor_msgs::msgs::Magne
   mavlink_interface_->UpdateMag(mag_data);
 }
 
+void GazeboMavlinkInterface::GpsCallback(const sensor_msgs::msgs::SITLGps &_msg) {
+  const std::lock_guard<std::mutex> lock(last_imu_message_mutex_);
+  SensorData::Gps gps_data;
+  gps_data.time_utc_usec = _msg.time_utc_usec();
+  gps_data.fix_type = 3;
+  gps_data.latitude_deg = _msg.latitude_deg() * 1e7;
+  gps_data.longitude_deg = _msg.longitude_deg() * 1e7;
+  gps_data.altitude = _msg.altitude() * 1000.0;
+  gps_data.eph = _msg.eph() * 100.0;
+  gps_data.epv = _msg.epv() * 100.0;
+  gps_data.velocity = _msg.velocity() * 100.0;
+  gps_data.velocity_north = _msg.velocity_north() * 100.0;
+  gps_data.velocity_east = _msg.velocity_east() * 100.0;
+  gps_data.velocity_down = -_msg.velocity_up() * 100.0;
+  // MAVLINK_HIL_GPS_T CoG is [0, 360]. math::Angle::Normalize() is [-pi, pi].
+  ignition::math::Angle cog(atan2(_msg.velocity_east(), _msg.velocity_north()));
+  cog.Normalize();
+  gps_data.cog = static_cast<uint16_t>(gazebo::GetDegrees360(cog) * 100.0);
+  gps_data.satellites_visible = 10;
+  gps_data.id = 0;
+
+  mavlink_interface_->SendGpsMessages(gps_data);
+
+}
+
 void GazeboMavlinkInterface::SendSensorMessages(const ignition::gazebo::UpdateInfo &_info) {
   ignition::math::Quaterniond q_gr = ignition::math::Quaterniond(
     last_imu_message_.orientation().w(),
@@ -315,12 +341,12 @@ void GazeboMavlinkInterface::SendSensorMessages(const ignition::gazebo::UpdateIn
   // send always accel and gyro data (not dependent of the bitmask)
   // required so to keep the timestamps on sync and the lockstep can
   // work properly
-  ignition::math::Vector3d accel_b = q_br.RotateVector(ignition::math::Vector3d(
+  ignition::math::Vector3d accel_b = q_FLU_to_FRD.RotateVector(ignition::math::Vector3d(
     last_imu_message_.linear_acceleration().x(),
     last_imu_message_.linear_acceleration().y(),
     last_imu_message_.linear_acceleration().z()));
 
-  ignition::math::Vector3d gyro_b = q_br.RotateVector(ignition::math::Vector3d(
+  ignition::math::Vector3d gyro_b = q_FLU_to_FRD.RotateVector(ignition::math::Vector3d(
     last_imu_message_.angular_velocity().x(),
     last_imu_message_.angular_velocity().y(),
     last_imu_message_.angular_velocity().z()));
@@ -342,17 +368,17 @@ void GazeboMavlinkInterface::SendGroundTruth()
     last_imu_message_.orientation().y(),
     last_imu_message_.orientation().z());
 
-  ignition::math::Quaterniond q_gb = q_gr*q_br.Inverse();
-  ignition::math::Quaterniond q_nb = q_ng*q_gb;
+  ignition::math::Quaterniond q_gb = q_gr*q_FLU_to_FRD.Inverse();
+  ignition::math::Quaterniond q_nb = q_ENU_to_NED*q_gb;
 
-  // ignition::math::Vector3d vel_b = q_br.RotateVector(model_->RelativeLinearVel());
-  // ignition::math::Vector3d vel_n = q_ng.RotateVector(model_->WorldLinearVel());
+  // ignition::math::Vector3d vel_b = q_FLU_to_FRD.RotateVector(model_->RelativeLinearVel());
+  // ignition::math::Vector3d vel_n = q_ENU_to_NED.RotateVector(model_->WorldLinearVel());
   // ignition::math::Vector3d omega_nb_b = q_br.RotateVector(model_->RelativeAngularVel());
   ignition::math::Vector3d vel_b;
   ignition::math::Vector3d vel_n;
   ignition::math::Vector3d omega_nb_b;
 
-  // ignition::math::Vector3d accel_true_b = q_br.RotateVector(model_->RelativeLinearAccel());
+  // ignition::math::Vector3d accel_true_b = q_FLU_to_FRD.RotateVector(model_->RelativeLinearAccel());
   ignition::math::Vector3d accel_true_b; //TODO: Get model pointer
 
   // send ground truth

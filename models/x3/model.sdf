@@ -304,5 +304,15 @@
       name="barometer_plugin::BarometerPlugin">
       <link_name>X3/base_link</link_name>
     </plugin>
+    <plugin
+      filename="libgazebo_magnetometer_plugin.so"
+      name="magnetometer_plugin::MagnetometerPlugin">
+      <link_name>X3/base_link</link_name>
+    </plugin>
+    <plugin
+      filename="libgazebo_gps_plugin.so"
+      name="gps_plugin::GpsPlugin">
+      <link_name>X3/base_link</link_name>
+    </plugin>
   </model>
 </sdf>

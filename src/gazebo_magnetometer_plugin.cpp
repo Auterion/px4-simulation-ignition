@@ -127,6 +127,19 @@ void MagnetometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
         mag_message_.add_magnetic_field_covariance(0.0);
     }
   }
+   auto linkName = _sdf->Get<std::string>("link_name");
+    model_ = ignition::gazebo::Model(_entity);
+    // Get link entity
+    model_link_ = model_.LinkByName(_ecm, linkName);
+
+  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
+  {
+    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldPose());
+  }
+  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldLinearVelocity::typeId))
+  {
+    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
+  }
 }
 
 void MagnetometerPlugin::GroundtruthCallback(const sensor_msgs::msgs::Groundtruth& gt_msg) {
@@ -178,9 +191,8 @@ void MagnetometerPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
     ignition::math::Vector3d magnetic_field_I(X, Y, Z);
 
     //TODO: Get valid data for these
-    ignition::math::Pose3d T_W_I;
-    ignition::math::Quaterniond q_ENU_to_NED;
-    ignition::math::Quaterniond q_FLU_to_FRD;
+    const ignition::gazebo::components::WorldPose* pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
+    const ignition::math::Pose3d T_W_I = pComp->Data();
 
     ignition::math::Quaterniond q_body_to_world = q_ENU_to_NED * T_W_I.Rot() * q_FLU_to_FRD.Inverse();
 

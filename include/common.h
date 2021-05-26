@@ -25,8 +25,16 @@
 #include <typeinfo>
 #include <Eigen/Dense>
 #include <ignition/math.hh>
+#include <sdf/sdf.hh>
+#include <ignition/common4/ignition/common.hh>
 
 namespace gazebo {
+
+/// Returns scalar value constrained by (min_val, max_val)
+template<typename Scalar>
+static inline constexpr const Scalar &constrain(const Scalar &val, const Scalar &min_val, const Scalar &max_val) {
+    return (val < min_val) ? min_val : ((val > max_val) ? max_val : val);
+}
 
 /**
  * \brief Obtains a parameter from sdf.
@@ -49,56 +57,6 @@ bool getSdfParam(const std::shared_ptr<const sdf::Element> sdf, const std::strin
       ignerr << "[rotors_gazebo_plugins] Please specify a value for parameter \"" << name << "\".\n";
   }
   return false;
-}
-
-template <typename T>
-void model_param(const std::string& world_name, const std::string& model_name, const std::string& param, T& param_value)
-{
-  TiXmlElement* e_param = nullptr;
-  TiXmlElement* e_param_tmp = nullptr;
-  std::string dbg_param;
-
-  TiXmlDocument doc(world_name + ".xml");
-  if (doc.LoadFile())
-  {
-    TiXmlHandle h_root(doc.RootElement());
-
-    TiXmlElement* e_model = h_root.FirstChild("model").Element();
-
-    for( ; e_model != nullptr; e_model=e_model->NextSiblingElement("model") )
-    {
-      const char* attr_name = e_model->Attribute("name");
-      if (attr_name)
-      {
-        //specific
-        if (model_name.compare(attr_name) == 0)
-        {
-          e_param_tmp = e_model->FirstChildElement(param);
-          if (e_param_tmp)
-          {
-            e_param = e_param_tmp;
-            dbg_param = "";
-          }
-          break;
-        }
-      }
-      else
-      {
-        //common
-        e_param = e_model->FirstChildElement(param);
-        dbg_param = "common ";
-      }
-    }
-
-    if (e_param)
-    {
-      std::istringstream iss(e_param->GetText());
-      iss >> param_value;
-
-      igndbg << model_name << " model: " << dbg_param << "parameter " << param << " = " << param_value << " from " << doc.Value() << "\n";
-    }
-  }
-
 }
 
 /**
@@ -163,12 +121,6 @@ discretized system (ZoH):
     T previousState_;
 };
 
-/// Returns scalar value constrained by (min_val, max_val)
-template<typename Scalar>
-static inline constexpr const Scalar &constrain(const Scalar &val, const Scalar &min_val, const Scalar &max_val) {
-    return (val < min_val) ? min_val : ((val > max_val) ? max_val : val);
-}
-
 /// Computes a quaternion from the 3-element small angle approximation theta.
 template<class Derived>
 Eigen::Quaternion<typename Derived::Scalar> QuaternionFromSmallAngle(const Eigen::MatrixBase<Derived> & theta) {
@@ -207,16 +159,18 @@ void copyPosition(const In& in, Out* out) {
  *
  * NED to ENU: +PI/2 rotation about Z (Down) followed by a +PI rotation around X (old North/new East)
  * ENU to NED: +PI/2 rotation about Z (Up) followed by a +PI rotation about X (old East/new North)
+ * This rotation is symmetric, so q_ENU_to_NED == q_NED_to_ENU.
  */
-static const auto q_ng = ignition::math::Quaterniond(0, 0.70711, 0.70711, 0);
+static const auto q_ENU_to_NED = ignition::math::Quaterniond(0, 0.70711, 0.70711, 0);
 
 /**
  * @brief Quaternion for rotation between body FLU and body FRD frames
  *
  * +PI rotation around X (Forward) axis rotates from Forward, Right, Down (aircraft)
  * to Forward, Left, Up (base_link) frames and vice-versa.
+ * This rotation is symmetric, so q_FLU_to_FRD == q_FRD_to_FLU.
  */
-static const auto q_br = ignition::math::Quaterniond(0, 1, 0, 0);
+static const auto q_FLU_to_FRD = ignition::math::Quaterniond(0, 1, 0, 0);
 
 // sensor X-axis unit vector in `base_link` frame
 static const ignition::math::Vector3d kDownwardRotation = ignition::math::Vector3d(0, 0, -1);
@@ -225,5 +179,43 @@ static const ignition::math::Vector3d kBackwardRotation = ignition::math::Vector
 static const ignition::math::Vector3d kForwardRotation = ignition::math::Vector3d(1, 0, 0);
 static const ignition::math::Vector3d kLeftRotation = ignition::math::Vector3d(0, 1, 0);
 static const ignition::math::Vector3d kRightRotation = ignition::math::Vector3d(0, -1, 0);
+
+// Zurich Irchel Park
+static constexpr const double kDefaultHomeLatitude = 47.397742 * M_PI / 180.0;   // rad
+static constexpr const double kDefaultHomeLongitude = 8.545594 * M_PI / 180.0;   // rad
+static constexpr const double kDefaultHomeAltitude = 488.0;                      // meters
+
+// Earth radius
+static constexpr const double earth_radius = 6353000.0;      // meters
+
+/**
+ * @brief Get latitude and longitude coordinates from local position
+ * @param[in] pos position in the local frame
+ * @return std::pair of Latitude and Longitude
+ */
+inline std::pair<double, double> reproject(ignition::math::Vector3d& pos,
+                                    double& lat_home,
+                                    double& lon_home,
+                                    double& alt_home)
+{
+  // reproject local position to gps coordinates
+  const double x_rad = pos.Y() / earth_radius;    // north
+  const double y_rad = pos.X() / earth_radius;    // east
+  const double c = sqrt(x_rad * x_rad + y_rad * y_rad);
+  const double sin_c = sin(c);
+  const double cos_c = cos(c);
+
+  double lat_rad, lon_rad;
+
+  if (c != 0.0) {
+    lat_rad = asin(cos_c * sin(lat_home) + (x_rad * sin_c * cos(lat_home)) / c);
+    lon_rad = (lon_home + atan2(y_rad * sin_c, c * cos(lat_home) * cos_c - x_rad * sin(lat_home) * sin_c));
+  } else {
+    lat_rad = lat_home;
+    lon_rad = lon_home;
+  }
+
+  return std::make_pair (lat_rad, lon_rad);
+}
 
 #endif  // SITL_GAZEBO_COMMON_H_

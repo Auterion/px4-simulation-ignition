@@ -68,6 +68,7 @@
 #include <ignition/msgs/imu.pb.h>
 #include <msgs/Pressure.pb.h>
 #include <msgs/MagneticField.pb.h>
+#include <msgs/SITLGps.pb.h>
 
 #include <common.h>
 
@@ -142,6 +143,7 @@ namespace mavlink_interface
       void ImuCallback(const ignition::msgs::IMU &_msg);
       void BarometerCallback(const sensor_msgs::msgs::Pressure &_msg);
       void MagnetometerCallback(const sensor_msgs::msgs::MagneticField &_msg);
+      void GpsCallback(const sensor_msgs::msgs::SITLGps &_msg);
       void SendSensorMessages(const ignition::gazebo::UpdateInfo &_info);
       void SendGroundTruth();
       void PublishRotorVelocities(ignition::gazebo::EntityComponentManager &_ecm,
