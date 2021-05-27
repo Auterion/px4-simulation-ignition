@@ -45,8 +45,11 @@
 #include <random>
 
 #include <ignition/gazebo/System.hh>
-#include <ignition/gazebo/components/Pose.hh>
 #include <ignition/transport/Node.hh>
+#include <ignition/gazebo/Model.hh>
+#include <ignition/gazebo/Util.hh>
+#include <ignition/gazebo/components/LinearVelocity.hh>
+#include <ignition/gazebo/components/Pose.hh>
 
 #include <msgs/Pressure.pb.h>
 
@@ -74,6 +77,9 @@ namespace barometer_plugin
     public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
                 const ignition::gazebo::EntityComponentManager &_ecm) override;
     private:
+        ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
+        ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
+
         std::chrono::steady_clock::duration last_pub_time_{0};
 
         std::string namespace_;

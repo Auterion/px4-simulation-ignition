@@ -42,6 +42,8 @@
 #include "gazebo_barometer_plugin.h"
 
 #include <ignition/plugin/Register.hh>
+#include <ignition/gazebo/components/LinearVelocity.hh>
+#include <ignition/gazebo/components/Name.hh>
 
 IGNITION_ADD_PLUGIN(
     barometer_plugin::BarometerPlugin,
@@ -65,7 +67,20 @@ void BarometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
       const std::shared_ptr<const sdf::Element> &_sdf,
       ignition::gazebo::EntityComponentManager &_ecm,
       ignition::gazebo::EventManager &_em) {
-      }
+    auto linkName = _sdf->Get<std::string>("link_name");
+    model_ = ignition::gazebo::Model(_entity);
+    // Get link entity
+    model_link_ = model_.LinkByName(_ecm, linkName);
+
+  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
+  {
+    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldPose());
+  }
+  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldLinearVelocity::typeId))
+  {
+    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
+  }
+}
 
 
 void BarometerPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
@@ -74,11 +89,12 @@ void BarometerPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
     const double dt = std::chrono::duration<double>(current_time - last_pub_time_).count();
   if (dt > 1.0 / pub_rate_) {
     // get pose of the model that the plugin is attached to
-    // const ignition::math::Pose3d pose_model_world = model_->WorldPose();
-
+    const ignition::gazebo::components::WorldPose* pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
+    const ignition::math::Pose3d pose_model_world = pComp->Data();
+    // const ignition::math::Pose3d pose_model_world;
+    // std::cout << "World Pose: " << pose_model_world.Pos().Z() << std::endl;
     ignition::math::Pose3d pose_model; // Z-component pose in local frame (relative to where it started)
-    // pose_model.Pos().Z() = pose_model_world.Pos().Z() - pose_model_start_.Pos().Z();
-
+    pose_model.Pos().Z() = pose_model_world.Pos().Z() - pose_model_start_.Pos().Z();
     const float pose_n_z = -pose_model.Pos().Z(); // convert Z-component from ENU to NED
 
     // calculate abs_pressure using an ISA model for the tropsphere (valid up to 11km above MSL)

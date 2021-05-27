@@ -50,12 +50,16 @@
 #include <msgs/MagneticField.pb.h>
 #include <msgs/Groundtruth.pb.h>
 
-#include <ignition/gazebo/System.hh>
-#include <ignition/gazebo/components/Pose.hh>
 #include <ignition/transport/Node.hh>
 #include <ignition/math.hh>
+#include <ignition/gazebo/Model.hh>
+#include <ignition/gazebo/Util.hh>
+#include <ignition/gazebo/components/LinearVelocity.hh>
+#include <ignition/gazebo/System.hh>
+#include <ignition/gazebo/components/Pose.hh>
 
 #include "geo_mag_declination.h"
+#include <common.h>
 
 namespace magnetometer_plugin {
 
@@ -91,6 +95,9 @@ namespace magnetometer_plugin {
       void addNoise(Eigen::Vector3d* magnetic_field, const double dt);
       void GroundtruthCallback(const sensor_msgs::msgs::Groundtruth& gt_msg);
       void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
+
+      ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
+      ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
 
       std::string mag_topic_;
       ignition::transport::Node node;

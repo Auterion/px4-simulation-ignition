@@ -53,3 +53,12 @@ target_link_libraries(gazebo_magnetometer_plugin
   PRIVATE ignition-gazebo5::ignition-gazebo5
   PRIVATE sensor_msgs
 )
+
+add_library(gazebo_gps_plugin SHARED src/gazebo_gps_plugin.cpp)
+set_property(TARGET gazebo_gps_plugin PROPERTY CXX_STANDARD 17)
+target_link_libraries(gazebo_gps_plugin
+  PRIVATE ${Boost_LIBRARIES}
+  PRIVATE ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
+  PRIVATE ignition-gazebo5::ignition-gazebo5
+  PRIVATE sensor_msgs
+)

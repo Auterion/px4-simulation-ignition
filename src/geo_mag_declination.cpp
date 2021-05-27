@@ -45,8 +45,8 @@
 #include <cstdint>
 #include <cmath>
 
+#include "common.h"
 #include "geo_mag_declination.h"
-
 /** set this always to the sampling in degrees for the table below */
 #define SAMPLING_RES		10.0f
 #define SAMPLING_MIN_LAT	-60.0f
@@ -117,7 +117,7 @@ get_lookup_table_index(float *val, float min, float max)
 
 	/* limit to table bounds - required for maxima even when table spans full globe range */
 	/* limit to (table bounds - 1) because bilinear interpolation requires checking (index + 1) */
-	*val = constrain(*val, min, max - SAMPLING_RES);
+	*val = gazebo::constrain(*val, min, max - SAMPLING_RES);
 
 	return static_cast<unsigned>((-(min) + *val) / SAMPLING_RES);
 }
@@ -149,8 +149,8 @@ get_table_data(float lat, float lon, const int8_t table[13][37])
 	const float data_nw = table[min_lat_index + 1][min_lon_index];
 
 	/* perform bilinear interpolation on the four grid corners */
-	const float lat_scale = constrain((lat - min_lat) / SAMPLING_RES, 0.0f, 1.0f);
-	const float lon_scale = constrain((lon - min_lon) / SAMPLING_RES, 0.0f, 1.0f);
+	const float lat_scale = gazebo::constrain((lat - min_lat) / SAMPLING_RES, 0.0f, 1.0f);
+	const float lon_scale = gazebo::constrain((lon - min_lon) / SAMPLING_RES, 0.0f, 1.0f);
 
 	const float data_min = lon_scale * (data_se - data_sw) + data_sw;
 	const float data_max = lon_scale * (data_ne - data_nw) + data_nw;
