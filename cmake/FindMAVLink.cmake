@@ -8,6 +8,13 @@
 # macros
 include(FindPackageHandleStandardArgs)
 
+# Check for ROS_DISTRO
+find_program(ROSVERSION rosversion)
+execute_process(COMMAND ${ROSVERSION} -d
+    OUTPUT_VARIABLE ROS_DISTRO
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 set(_MAVLINK_EXTRA_SEARCH_HINTS
     ${CMAKE_SOURCE_DIR}/mavlink/
     ../../mavlink/
