@@ -1,4 +1,4 @@
-set(Protobuf_IMPORT_DIRS ${ignition-msgs7_INCLUDE_DIRS})
+set(Protobuf_IMPORT_DIRS ${ignition-msgs8_INCLUDE_DIRS})
 find_package(Protobuf REQUIRED)
 
 set(sensor_msgs
@@ -19,4 +19,4 @@ set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
 
 add_library(sensor_msgs SHARED ${SEN_PROTO_SRCS})
 link_libraries(sensor_msgs)
-target_link_libraries(sensor_msgs ignition-msgs7)
+target_link_libraries(sensor_msgs ignition-msgs8)
