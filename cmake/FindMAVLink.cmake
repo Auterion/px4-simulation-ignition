@@ -12,6 +12,8 @@ set(_MAVLINK_EXTRA_SEARCH_HINTS
     ${CMAKE_SOURCE_DIR}/mavlink/
     ../../mavlink/
     ../mavlink/
+    ${CATKIN_DEVEL_PREFIX}/
+    ${CMAKE_CURRENT_BINARY_DIR}/../mavlink/
     )
 
 set(_MAVLINK_EXTRA_SEARCH_PATHS
@@ -21,7 +23,7 @@ set(_MAVLINK_EXTRA_SEARCH_PATHS
 
 # look for in the hints first
 find_path(_MAVLINK_INCLUDE_DIR
-    NAMES mavlink/v1.0/mavlink_types.h mavlink/v2.0/mavlink_types.h
+    NAMES mavlink_types.h
     PATH_SUFFIXES include
     HINTS ${_MAVLINK_EXTRA_SEARCH_HINTS}
     NO_DEFAULT_PATH
@@ -29,8 +31,8 @@ find_path(_MAVLINK_INCLUDE_DIR
 
 # look for in the hard-coded paths
 find_path(_MAVLINK_INCLUDE_DIR
-    NAMES mavlink/v1.0/mavlink_types.h mavlink/v2.0/mavlink_types.h
-    PATH_SUFFIXES include
+    NAMES mavlink_types.h
+    PATH_SUFFIXES include/mavlink
     PATHS ${_MAVLINK_EXTRA_SEARCH_PATHS}
     NO_CMAKE_PATH
     NO_CMAKE_ENVIRONMENT_PATH
@@ -39,7 +41,7 @@ find_path(_MAVLINK_INCLUDE_DIR
     )
 
 # look specifically for the ROS version if no other was found
-find_path(_MAVLINK_INCLUDE_DIRca
+find_path(_MAVLINK_INCLUDE_DIR
    NAMES mavlink/v1.0/mavlink_types.h mavlink/v2.0/mavlink_types.h
    PATH_SUFFIXES include
    PATHS /opt/ros/${ROS_DISTRO}/
