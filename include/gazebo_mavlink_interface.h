@@ -72,7 +72,7 @@
 
 #include <common.h>
 
-#include <common/mavlink.h>
+#include <development/mavlink.h>
 #include "msgbuffer.h"
 #include "mavlink_interface.h"
 

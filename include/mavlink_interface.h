@@ -49,7 +49,7 @@
 
 #include <Eigen/Eigen>
 
-#include <common/mavlink.h>
+#include <development/mavlink.h>
 #include "msgbuffer.h"
 
 static const uint32_t kDefaultMavlinkUdpPort = 14560;
