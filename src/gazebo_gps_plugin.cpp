@@ -154,6 +154,10 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
 
 void GpsPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
   ignition::gazebo::EntityComponentManager &_ecm) {
+}
+
+void GpsPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
+    const ignition::gazebo::EntityComponentManager &_ecm) {
   const std::chrono::steady_clock::duration current_time = _info.simTime;
   const double dt = std::chrono::duration<double>(current_time - last_pub_time_).count();
   if (dt > 1.0 / update_rate_) {
@@ -234,8 +238,4 @@ void GpsPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
     pub_gps_.Publish(gps_msg);
     last_pub_time_ = current_time;
   }
-}
-
-void GpsPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-    const ignition::gazebo::EntityComponentManager &_ecm) {
 }

@@ -85,6 +85,10 @@ void BarometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
 
 void BarometerPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
   ignition::gazebo::EntityComponentManager &_ecm) {
+}
+
+void BarometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
+    const ignition::gazebo::EntityComponentManager &_ecm) {
     const std::chrono::steady_clock::duration current_time = _info.simTime;
     const double dt = std::chrono::duration<double>(current_time - last_pub_time_).count();
   if (dt > 1.0 / pub_rate_) {
@@ -157,8 +161,4 @@ void BarometerPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
     // Publish baro msg
     pub_baro_.Publish(baro_msg_);
   }
-}
-
-void BarometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-    const ignition::gazebo::EntityComponentManager &_ecm) {
 }
