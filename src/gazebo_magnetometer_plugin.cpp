@@ -169,6 +169,10 @@ void MagnetometerPlugin::addNoise(Eigen::Vector3d* magnetic_field, const double 
 
 void MagnetometerPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
   ignition::gazebo::EntityComponentManager &_ecm) {
+}
+
+void MagnetometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
+    const ignition::gazebo::EntityComponentManager &_ecm) {
   const std::chrono::steady_clock::duration current_time = _info.simTime;
   const double dt = std::chrono::duration<double>(current_time - last_pub_time_).count();
   if (dt > 1.0 / pub_rate_) {
@@ -216,8 +220,4 @@ void MagnetometerPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
     // publish mag msg
     pub_mag_.Publish(mag_message_);
   }
-}
-
-void MagnetometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-    const ignition::gazebo::EntityComponentManager &_ecm) {
 }
