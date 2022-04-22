@@ -1,7 +1,7 @@
 #include <string>
 #include <ignition/common/Console.hh>
 
-#include "HelloWorld.hh"
+#include "HelloWorld.h"
 
 using namespace ignition;
 using namespace gazebo;
