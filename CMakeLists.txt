@@ -62,3 +62,9 @@ target_link_libraries(gazebo_gps_plugin
   PRIVATE ignition-gazebo5::ignition-gazebo5
   PRIVATE sensor_msgs
 )
+
+add_library(HelloWorld SHARED src/HelloWorld.cpp)
+set_property(TARGET HelloWorld PROPERTY CXX_STANDARD 17)
+target_link_libraries(HelloWorld
+  PRIVATE ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
+  PRIVATE ignition-gazebo${IGN_GAZEBO_VER}::ignition-gazebo${IGN_GAZEBO_VER})
