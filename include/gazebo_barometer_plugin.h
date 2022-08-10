@@ -51,7 +51,7 @@
 #include <ignition/gazebo/components/LinearVelocity.hh>
 #include <ignition/gazebo/components/Pose.hh>
 
-#include <msgs/Pressure.pb.h>
+#include <Pressure.pb.h>
 
 static constexpr auto kDefaultBarometerTopic = "/baro";
 static constexpr auto kDefaultPubRate = 50;  // [Hz]. Note: averages the supported Baro device ODR in PX4

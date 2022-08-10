@@ -39,7 +39,7 @@
 
 #include <ignition/transport/Node.hh>
 
-#include <msgs/SITLGps.pb.h>
+#include <SITLGps.pb.h>
 #include <common.h>
 
 static constexpr double kDefaultUpdateRate = 5.0;               // hz
