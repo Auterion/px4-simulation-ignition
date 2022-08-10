@@ -26,12 +26,15 @@ make px4_sitl ignition
 For more instructions when running the simulation with PX4, follow the [documentation](http://docs.px4.io/master/en/simulation/ignition_gazebo.html)
 
 ## Creation and install of debian package on Linux
-This creates a debian package and installs the plugins to /usr/lib on Linux. To use this package you must add /usr/lib to IGN_GAZEBO_SYSTEM_PLUGIN_PATH.
+This creates a debian package and installs the plugins to /usr/lib on Linux. It installs the models and worlds to /usr/share.
 ```
+export IGN_GAZEBO_SYSTEM_PLUGIN_PATH=/usr/lib
+export IGN_GAZEBO_RESOURCE_PATH=$IGN_GAZEBO_RESOURCE_PATH:/usr/share/mavlink_sitl_ign_gazebo/models
 mkdir build
 cd build
 cmake ..
 make
 cpack -G DEB
 sudo dpkg -i *.deb
+ign gazebo /usr/share/mavlink_sitl_ign_gazebo/worlds/iris.sdf
 ```

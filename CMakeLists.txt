@@ -92,5 +92,11 @@ install(TARGETS
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
 
+install(DIRECTORY
+  models
+  worlds
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}
+  )
+
 set(CPACK_PACKAGE_CONTACT "Auterion")
 include(CPack)
