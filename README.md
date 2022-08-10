@@ -24,3 +24,14 @@ make px4_sitl ignition
 ```
 
 For more instructions when running the simulation with PX4, follow the [documentation](http://docs.px4.io/master/en/simulation/ignition_gazebo.html)
+
+## Creation and install of debian package on Linux
+This creates a debian package and installs the plugins to /usr/lib on Linux. To use this package you must add /usr/lib to IGN_GAZEBO_SYSTEM_PLUGIN_PATH.
+```
+mkdir build
+cd build
+cmake ..
+make
+cpack -G DEB
+sudo dpkg -i *.deb
+```
