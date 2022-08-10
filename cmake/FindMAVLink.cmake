@@ -49,9 +49,9 @@ find_path(_MAVLINK_INCLUDE_DIR
 
 # look specifically for the ROS version if no other was found
 find_path(_MAVLINK_INCLUDE_DIR
-   NAMES mavlink/v1.0/mavlink_types.h mavlink/v2.0/mavlink_types.h
-   PATH_SUFFIXES include
-   PATHS /opt/ros/${ROS_DISTRO}/
+   NAMES mavlink/v2.0/mavlink_types.h
+   PATH_SUFFIXES include 
+   PATHS /opt/ros/${ROS_DISTRO}
    )
 
 # read the version

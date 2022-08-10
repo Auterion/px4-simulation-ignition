@@ -47,8 +47,8 @@
 #include <Eigen/Core>
 #include <boost/shared_array.hpp>
 
-#include <msgs/MagneticField.pb.h>
-#include <msgs/Groundtruth.pb.h>
+#include <MagneticField.pb.h>
+#include <Groundtruth.pb.h>
 
 #include <ignition/transport/Node.hh>
 #include <ignition/math.hh>

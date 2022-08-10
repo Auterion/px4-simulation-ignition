@@ -66,13 +66,13 @@
 
 #include <ignition/transport/Node.hh>
 #include <ignition/msgs/imu.pb.h>
-#include <msgs/Pressure.pb.h>
-#include <msgs/MagneticField.pb.h>
-#include <msgs/SITLGps.pb.h>
+#include <Pressure.pb.h>
+#include <MagneticField.pb.h>
+#include <SITLGps.pb.h>
 
 #include <common.h>
 
-#include <development/mavlink.h>
+#include <mavlink/v2.0/development/mavlink.h>
 #include "msgbuffer.h"
 #include "mavlink_interface.h"
 
