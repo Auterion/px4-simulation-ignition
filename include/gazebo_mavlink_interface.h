@@ -182,6 +182,7 @@ namespace mavlink_interface
       std::chrono::steady_clock::duration last_imu_time_{0};
       std::chrono::steady_clock::duration lastControllerUpdateTime{0};
       std::chrono::steady_clock::duration last_actuator_time_{0};
+      std::chrono::steady_clock::duration last_heartbeat_sent_time_{0};
 
       bool mag_updated_{false};
       bool baro_updated_;

@@ -246,6 +246,14 @@ void GazeboMavlinkInterface::PreUpdate(const ignition::gazebo::UpdateInfo &_info
     mavlink_interface_->pollForMAVLinkMessages();
   }
 
+  // We need to send out heartbeats at a high rate until the connection is established,
+  // otherwise PX4 on USB doesn't enable mavlink and the buffer fills up.
+  std::chrono::steady_clock::duration current_time = _info.simTime;
+  if ((current_time - last_heartbeat_sent_time_).count() > 1.0 || !mavlink_interface_->ReceivedHeartbeats()) {
+    mavlink_interface_->SendHeartbeat();
+    last_heartbeat_sent_time_ = current_time;
+  }
+
   // Always send Gyro and Accel data at full rate (= sim update rate)
   SendSensorMessages(_info);
 

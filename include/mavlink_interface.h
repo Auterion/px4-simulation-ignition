@@ -131,6 +131,7 @@ class MavlinkInterface {
   void open();
   void close();
   void Load();
+  void SendHeartbeat();
   void SendSensorMessages(int time_usec);
   void SendGpsMessages(const SensorData::Gps &data);
   void UpdateBarometer(const SensorData::Barometer &data);
@@ -156,12 +157,15 @@ class MavlinkInterface {
   inline void SetHILMode(bool hil_mode) { hil_mode_ = hil_mode; }
   inline void SetHILStateLevel(bool hil_state_level) { hil_state_level_ = hil_state_level; }
 
+  bool ReceivedHeartbeats() const { return received_heartbeats_; }
+
  private:
   bool received_first_actuator_;
   bool armed_;
   Eigen::VectorXd input_reference_;
 
   void handle_message(mavlink_message_t *msg, bool &received_actuator);
+  void handle_heartbeat(mavlink_message_t *msg);
   void acceptConnections();
 
   // Serial interface
@@ -247,4 +251,6 @@ class MavlinkInterface {
   Eigen::Vector3d gyro_b_;
 
   std::atomic<bool> gotSigInt_{false};
+
+  bool received_heartbeats_ {false};
 };
