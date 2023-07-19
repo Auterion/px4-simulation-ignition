@@ -26,11 +26,11 @@
 
 #include "gazebo_gps_plugin.h"
 
-#include <ignition/plugin/Register.hh>
+#include <gz/plugin/Register.hh>
 
-IGNITION_ADD_PLUGIN(
+GZ_ADD_PLUGIN(
     gps_plugin::GpsPlugin,
-    ignition::gazebo::System,
+    gz::sim::System,
     gps_plugin::GpsPlugin::ISystemConfigure,
     gps_plugin::GpsPlugin::ISystemPreUpdate,
     gps_plugin::GpsPlugin::ISystemPostUpdate)
@@ -46,10 +46,10 @@ GpsPlugin::GpsPlugin()
 GpsPlugin::~GpsPlugin() {
 }
 
-void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
+void GpsPlugin::Configure(const gz::sim::Entity &_entity,
       const std::shared_ptr<const sdf::Element> &_sdf,
-      ignition::gazebo::EntityComponentManager &_ecm,
-      ignition::gazebo::EventManager &_em) {
+      gz::sim::EntityComponentManager &_ecm,
+      gz::sim::EventManager &_em) {
         // Use environment variables if set for home position.
   const char *env_lat = std::getenv("PX4_HOME_LAT");
   const char *env_lon = std::getenv("PX4_HOME_LON");
@@ -57,7 +57,7 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
 
   if (env_lat) {
     lat_home_ = std::stod(env_lat) * M_PI / 180.0;
-    ignmsg << "[gazebo_gps_plugin] Home latitude is set to " << std::stod(env_lat) << ".\n";
+    gzmsg << "[gazebo_gps_plugin] Home latitude is set to " << std::stod(env_lat) << ".\n";
   } else if(_sdf->HasElement("homeLatitude")) {
     double latitude;
     gazebo::getSdfParam<double>(_sdf, "homeLatitude", latitude, lat_home_);
@@ -66,7 +66,7 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
 
   if (env_lon) {
     lon_home_ = std::stod(env_lon) * M_PI / 180.0;
-    ignmsg << "[gazebo_gps_plugin] Home longitude is set to " << std::stod(env_lon) << ".\n";
+    gzmsg << "[gazebo_gps_plugin] Home longitude is set to " << std::stod(env_lon) << ".\n";
   } else if(_sdf->HasElement("homeLongitude")) {
     double longitude;
     gazebo::getSdfParam<double>(_sdf, "homeLongitude", longitude, lon_home_);
@@ -75,7 +75,7 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
 
   if (env_alt) {
     alt_home_ = std::stod(env_alt);
-    ignmsg << "[gazebo_gps_plugin] Home altitude is set to " << alt_home_ << ".\n";
+    gzmsg << "[gazebo_gps_plugin] Home altitude is set to " << alt_home_ << ".\n";
   } else if(_sdf->HasElement("homeAltitude")) {
     gazebo::getSdfParam<double>(_sdf, "homeAltitude", alt_home_, alt_home_);
   }
@@ -83,7 +83,7 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
   if (_sdf->HasElement("gpsXYRandomWalk")) {
     gazebo::getSdfParam<double>(_sdf, "gpsXYRandomWalk", gps_xy_random_walk_, kDefaultGpsXYRandomWalk);
   } else {
-    ignwarn << "[gazebo_gps_plugin] Using default random walk in XY plane: "
+    gzwarn << "[gazebo_gps_plugin] Using default random walk in XY plane: "
            << kDefaultGpsXYRandomWalk << "\n";
   }
 
@@ -91,7 +91,7 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
   if (_sdf->HasElement("gpsZRandomWalk")) {
     gazebo::getSdfParam<double>(_sdf, "gpsZRandomWalk", gps_z_random_walk_, kDefaultGpsZRandomWalk);
   } else {
-    ignwarn << "[gazebo_gps_plugin] Using default random walk in Z: "
+    gzwarn << "[gazebo_gps_plugin] Using default random walk in Z: "
            << kDefaultGpsZRandomWalk << "\n";
   }
 
@@ -99,7 +99,7 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
   if (_sdf->HasElement("gpsXYNoiseDensity")) {
     gazebo::getSdfParam<double>(_sdf, "gpsXYNoiseDensity", gps_xy_noise_density_, kDefaultGpsXYNoiseDensity);
   } else {
-    ignwarn << "[gazebo_gps_plugin] Using default position noise density in XY plane: "
+    gzwarn << "[gazebo_gps_plugin] Using default position noise density in XY plane: "
            << kDefaultGpsXYNoiseDensity << "\n";
   }
 
@@ -107,7 +107,7 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
   if (_sdf->HasElement("gpsZNoiseDensity")) {
     gazebo::getSdfParam<double>(_sdf, "gpsZNoiseDensity", gps_z_noise_density_, kDefaultGpsZNoiseDensity);
   } else {
-    ignwarn << "[gazebo_gps_plugin] Using default position noise density in Z: "
+    gzwarn << "[gazebo_gps_plugin] Using default position noise density in Z: "
            << kDefaultGpsZNoiseDensity << "\n";
   }
 
@@ -115,7 +115,7 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
   if (_sdf->HasElement("gpsVXYNoiseDensity")) {
     gazebo::getSdfParam<double>(_sdf, "gpsVXYNoiseDensity", gps_vxy_noise_density_, kDefaultGpsVXYNoiseDensity);
   } else {
-    ignwarn << "[gazebo_gps_plugin] Using default velocity noise density in XY plane: "
+    gzwarn << "[gazebo_gps_plugin] Using default velocity noise density in XY plane: "
            << kDefaultGpsVXYNoiseDensity << "\n";
   }
 
@@ -123,7 +123,7 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
   if (_sdf->HasElement("gpsVZNoiseDensity")) {
     gazebo::getSdfParam<double>(_sdf, "gpsVZNoiseDensity", gps_vz_noise_density_, kDefaultGpsVZNoiseDensity);
   } else {
-    ignwarn << "[gazebo_gps_plugin] Using default velocity noise density in Z: "
+    gzwarn << "[gazebo_gps_plugin] Using default velocity noise density in Z: "
            << kDefaultGpsVZNoiseDensity << "\n";
   }
 
@@ -132,47 +132,47 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
     gazebo::getSdfParam<double>(_sdf, "update_rate", update_rate_, kDefaultUpdateRate);
   } else {
     update_rate_ = kDefaultUpdateRate;
-    ignwarn << "[gazebo_gps_plugin] Using default update rate of "
+    gzwarn << "[gazebo_gps_plugin] Using default update rate of "
            << kDefaultUpdateRate << "hz \n";
   }
 
    auto linkName = _sdf->Get<std::string>("link_name");
-    model_ = ignition::gazebo::Model(_entity);
+    model_ = gz::sim::Model(_entity);
     // Get link entity
     model_link_ = model_.LinkByName(_ecm, linkName);
 
-  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
+  if(!_ecm.EntityHasComponentType(model_link_, gz::sim::components::WorldPose::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldPose());
+    _ecm.CreateComponent(model_link_, gz::sim::components::WorldPose());
   }
-  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldLinearVelocity::typeId))
+  if(!_ecm.EntityHasComponentType(model_link_, gz::sim::components::WorldLinearVelocity::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
+    _ecm.CreateComponent(model_link_, gz::sim::components::WorldLinearVelocity());
   }
 }
 
 
-void GpsPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-  ignition::gazebo::EntityComponentManager &_ecm) {
+void GpsPlugin::PreUpdate(const gz::sim::UpdateInfo &_info,
+  gz::sim::EntityComponentManager &_ecm) {
 }
 
-void GpsPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-    const ignition::gazebo::EntityComponentManager &_ecm) {
+void GpsPlugin::PostUpdate(const gz::sim::UpdateInfo &_info,
+    const gz::sim::EntityComponentManager &_ecm) {
   const std::chrono::steady_clock::duration current_time = _info.simTime;
   const double dt = std::chrono::duration<double>(current_time - last_pub_time_).count();
   if (dt > 1.0 / update_rate_) {
 
-    const ignition::gazebo::components::WorldPose* pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
-    const ignition::math::Pose3d T_W_I = pComp->Data();
+    const gz::sim::components::WorldPose* pComp = _ecm.Component<gz::sim::components::WorldPose>(model_link_);
+    const gz::math::Pose3d T_W_I = pComp->Data();
     // Use the model world position for GPS
-    const ignition::math::Vector3d& pos_W_I = T_W_I.Pos();
-    const ignition::math::Quaterniond& att_W_I = T_W_I.Rot();
+    const gz::math::Vector3d& pos_W_I = T_W_I.Pos();
+    const gz::math::Quaterniond& att_W_I = T_W_I.Rot();
 
     // Use the models' world position for GPS velocity.
-    const ignition::gazebo::components::WorldLinearVelocity* vComp = _ecm.Component<ignition::gazebo::components::WorldLinearVelocity>(model_link_);
-    ignition::math::Vector3d velocity_current_W = vComp->Data();; // = model_->WorldLinearVel();
+    const gz::sim::components::WorldLinearVelocity* vComp = _ecm.Component<gz::sim::components::WorldLinearVelocity>(model_link_);
+    gz::math::Vector3d velocity_current_W = vComp->Data();; // = model_->WorldLinearVel();
 
-    ignition::math::Vector3d velocity_current_W_xy = velocity_current_W;
+    gz::math::Vector3d velocity_current_W_xy = velocity_current_W;
     velocity_current_W_xy.Z() = 0;
 
     // update noise parameters if gps_noise_ is set

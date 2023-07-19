@@ -40,11 +40,11 @@
 
 #include "gazebo_magnetometer_plugin.h"
 
-#include <ignition/plugin/Register.hh>
+#include <gz/plugin/Register.hh>
 
-IGNITION_ADD_PLUGIN(
+GZ_ADD_PLUGIN(
     magnetometer_plugin::MagnetometerPlugin,
-    ignition::gazebo::System,
+    gz::sim::System,
     magnetometer_plugin::MagnetometerPlugin::ISystemConfigure,
     magnetometer_plugin::MagnetometerPlugin::ISystemPreUpdate,
     magnetometer_plugin::MagnetometerPlugin::ISystemPostUpdate)
@@ -67,45 +67,45 @@ void MagnetometerPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> 
     pub_rate_ = sdf->Get<unsigned int>("pubRate");
   } else {
     pub_rate_ = kDefaultPubRate;
-    ignwarn << "[gazebo_magnetometer_plugin] Using default publication rate of " << pub_rate_ << " Hz\n";
+    gzwarn << "[gazebo_magnetometer_plugin] Using default publication rate of " << pub_rate_ << " Hz\n";
   }
 
   if (sdf->HasElement("noiseDensity")) {
     noise_density_ = sdf->Get<double>("noiseDensity");
   } else {
     noise_density_ = kDefaultNoiseDensity;
-    ignwarn << "[gazebo_magnetometer_plugin] Using default noise density of " << noise_density_ << " (gauss) / sqrt(hz)\n";
+    gzwarn << "[gazebo_magnetometer_plugin] Using default noise density of " << noise_density_ << " (gauss) / sqrt(hz)\n";
   }
 
   if (sdf->HasElement("randomWalk")) {
     random_walk_ = sdf->Get<double>("randomWalk");
   } else {
     random_walk_ = kDefaultRandomWalk;
-    ignwarn << "[gazebo_magnetometer_plugin] Using default random walk of " << random_walk_ << " (gauss) * sqrt(hz)\n";
+    gzwarn << "[gazebo_magnetometer_plugin] Using default random walk of " << random_walk_ << " (gauss) * sqrt(hz)\n";
   }
 
   if (sdf->HasElement("biasCorrelationTime")) {
     bias_correlation_time_ = sdf->Get<double>("biasCorrelationTime");
   } else {
     bias_correlation_time_ = kDefaultBiasCorrelationTime;
-    ignwarn << "[gazebo_magnetometer_plugin] Using default bias correlation time of " << random_walk_ << " s\n";
+    gzwarn << "[gazebo_magnetometer_plugin] Using default bias correlation time of " << random_walk_ << " s\n";
   }
 
   if(sdf->HasElement("magTopic")) {
     mag_topic_ = sdf->Get<std::string>("magTopic");
   } else {
     mag_topic_ = kDefaultMagnetometerTopic;
-    ignwarn << "[gazebo_magnetometer_plugin] Using default magnetometer topic " << mag_topic_ << "\n";
+    gzwarn << "[gazebo_magnetometer_plugin] Using default magnetometer topic " << mag_topic_ << "\n";
   }
 
   gt_sub_topic_ = "/groundtruth";
 }
 
 
-void MagnetometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
+void MagnetometerPlugin::Configure(const gz::sim::Entity &_entity,
                             const std::shared_ptr<const sdf::Element> &_sdf,
-                            ignition::gazebo::EntityComponentManager &_ecm,
-                            ignition::gazebo::EventManager &/*_eventMgr*/)
+                            gz::sim::EntityComponentManager &_ecm,
+                            gz::sim::EventManager &/*_eventMgr*/)
 {
   getSdfParams(_sdf);
 
@@ -128,17 +128,17 @@ void MagnetometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
     }
   }
    auto linkName = _sdf->Get<std::string>("link_name");
-    model_ = ignition::gazebo::Model(_entity);
+    model_ = gz::sim::Model(_entity);
     // Get link entity
     model_link_ = model_.LinkByName(_ecm, linkName);
 
-  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
+  if(!_ecm.EntityHasComponentType(model_link_, gz::sim::components::WorldPose::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldPose());
+    _ecm.CreateComponent(model_link_, gz::sim::components::WorldPose());
   }
-  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldLinearVelocity::typeId))
+  if(!_ecm.EntityHasComponentType(model_link_, gz::sim::components::WorldLinearVelocity::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
+    _ecm.CreateComponent(model_link_, gz::sim::components::WorldLinearVelocity());
   }
 }
 
@@ -167,12 +167,12 @@ void MagnetometerPlugin::addNoise(Eigen::Vector3d* magnetic_field, const double 
   }
 }
 
-void MagnetometerPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-  ignition::gazebo::EntityComponentManager &_ecm) {
+void MagnetometerPlugin::PreUpdate(const gz::sim::UpdateInfo &_info,
+  gz::sim::EntityComponentManager &_ecm) {
 }
 
-void MagnetometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-    const ignition::gazebo::EntityComponentManager &_ecm) {
+void MagnetometerPlugin::PostUpdate(const gz::sim::UpdateInfo &_info,
+    const gz::sim::EntityComponentManager &_ecm) {
   const std::chrono::steady_clock::duration current_time = _info.simTime;
   const double dt = std::chrono::duration<double>(current_time - last_pub_time_).count();
   if (dt > 1.0 / pub_rate_) {
@@ -192,15 +192,15 @@ void MagnetometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
     float X = H * cosf(declination_rad);
     float Y = H * sinf(declination_rad);
 
-    ignition::math::Vector3d magnetic_field_I(X, Y, Z);
+    gz::math::Vector3d magnetic_field_I(X, Y, Z);
 
     //TODO: Get valid data for these
-    const ignition::gazebo::components::WorldPose* pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
-    const ignition::math::Pose3d T_W_I = pComp->Data();
+    const gz::sim::components::WorldPose* pComp = _ecm.Component<gz::sim::components::WorldPose>(model_link_);
+    const gz::math::Pose3d T_W_I = pComp->Data();
 
-    ignition::math::Quaterniond q_body_to_world = q_ENU_to_NED * T_W_I.Rot() * q_FLU_to_FRD.Inverse();
+    gz::math::Quaterniond q_body_to_world = q_ENU_to_NED * T_W_I.Rot() * q_FLU_to_FRD.Inverse();
 
-    ignition::math::Vector3d magnetic_field_B = q_body_to_world.RotateVectorReverse(magnetic_field_I);
+    gz::math::Vector3d magnetic_field_B = q_body_to_world.RotateVectorReverse(magnetic_field_I);
     // Magnetometer noise
     Eigen::Vector3d measured_mag(magnetic_field_B.X(), magnetic_field_B.Y(), magnetic_field_B.Z());
     addNoise(&measured_mag, dt);
@@ -209,7 +209,7 @@ void MagnetometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
     mag_message_.set_time_usec(std::chrono::duration_cast<std::chrono::microseconds>(current_time).count());
 
 
-    ignition::msgs::Vector3d* magnetic_field = new ignition::msgs::Vector3d();
+    gz::msgs::Vector3d* magnetic_field = new gz::msgs::Vector3d();
     magnetic_field->set_x(measured_mag[0]);
     magnetic_field->set_y(measured_mag[1]);
     magnetic_field->set_z(measured_mag[2]);

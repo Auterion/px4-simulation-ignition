@@ -41,13 +41,13 @@
 
 #include "gazebo_barometer_plugin.h"
 
-#include <ignition/plugin/Register.hh>
-#include <ignition/gazebo/components/LinearVelocity.hh>
-#include <ignition/gazebo/components/Name.hh>
+#include <gz/plugin/Register.hh>
+#include <gz/sim/components/LinearVelocity.hh>
+#include <gz/sim/components/Name.hh>
 
-IGNITION_ADD_PLUGIN(
+GZ_ADD_PLUGIN(
     barometer_plugin::BarometerPlugin,
-    ignition::gazebo::System,
+    gz::sim::System,
     barometer_plugin::BarometerPlugin::ISystemConfigure,
     barometer_plugin::BarometerPlugin::ISystemPreUpdate,
     barometer_plugin::BarometerPlugin::ISystemPostUpdate)
@@ -63,41 +63,41 @@ BarometerPlugin::BarometerPlugin()
 BarometerPlugin::~BarometerPlugin() {
 }
 
-void BarometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
+void BarometerPlugin::Configure(const gz::sim::Entity &_entity,
       const std::shared_ptr<const sdf::Element> &_sdf,
-      ignition::gazebo::EntityComponentManager &_ecm,
-      ignition::gazebo::EventManager &_em) {
+      gz::sim::EntityComponentManager &_ecm,
+      gz::sim::EventManager &_em) {
     auto linkName = _sdf->Get<std::string>("link_name");
-    model_ = ignition::gazebo::Model(_entity);
+    model_ = gz::sim::Model(_entity);
     // Get link entity
     model_link_ = model_.LinkByName(_ecm, linkName);
 
-  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
+  if(!_ecm.EntityHasComponentType(model_link_, gz::sim::components::WorldPose::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldPose());
+    _ecm.CreateComponent(model_link_, gz::sim::components::WorldPose());
   }
-  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldLinearVelocity::typeId))
+  if(!_ecm.EntityHasComponentType(model_link_, gz::sim::components::WorldLinearVelocity::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
+    _ecm.CreateComponent(model_link_, gz::sim::components::WorldLinearVelocity());
   }
 }
 
 
-void BarometerPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-  ignition::gazebo::EntityComponentManager &_ecm) {
+void BarometerPlugin::PreUpdate(const gz::sim::UpdateInfo &_info,
+  gz::sim::EntityComponentManager &_ecm) {
 }
 
-void BarometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-    const ignition::gazebo::EntityComponentManager &_ecm) {
+void BarometerPlugin::PostUpdate(const gz::sim::UpdateInfo &_info,
+    const gz::sim::EntityComponentManager &_ecm) {
     const std::chrono::steady_clock::duration current_time = _info.simTime;
     const double dt = std::chrono::duration<double>(current_time - last_pub_time_).count();
   if (dt > 1.0 / pub_rate_) {
     // get pose of the model that the plugin is attached to
-    const ignition::gazebo::components::WorldPose* pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
-    const ignition::math::Pose3d pose_model_world = pComp->Data();
-    // const ignition::math::Pose3d pose_model_world;
+    const gz::sim::components::WorldPose* pComp = _ecm.Component<gz::sim::components::WorldPose>(model_link_);
+    const gz::math::Pose3d pose_model_world = pComp->Data();
+    // const gz::math::Pose3d pose_model_world;
     // std::cout << "World Pose: " << pose_model_world.Pos().Z() << std::endl;
-    ignition::math::Pose3d pose_model; // Z-component pose in local frame (relative to where it started)
+    gz::math::Pose3d pose_model; // Z-component pose in local frame (relative to where it started)
     pose_model.Pos().Z() = pose_model_world.Pos().Z() - pose_model_start_.Pos().Z();
     const float pose_n_z = -pose_model.Pos().Z(); // convert Z-component from ENU to NED
 
