@@ -30,14 +30,14 @@
 
 #include <random>
 
-#include <ignition/gazebo/System.hh>
-#include <ignition/gazebo/Model.hh>
-#include <ignition/gazebo/Util.hh>
-#include <ignition/gazebo/components/LinearVelocity.hh>
-#include <ignition/gazebo/components/Pose.hh>
-#include <ignition/gazebo/System.hh>
+#include <gz/sim/System.hh>
+#include <gz/sim/Model.hh>
+#include <gz/sim/Util.hh>
+#include <gz/sim/components/LinearVelocity.hh>
+#include <gz/sim/components/Pose.hh>
+#include <gz/sim/System.hh>
 
-#include <ignition/transport/Node.hh>
+#include <gz/transport/Node.hh>
 
 #include <SITLGps.pb.h>
 #include <common.h>
@@ -52,23 +52,23 @@ static constexpr double kDefaultGpsVZNoiseDensity = 0.4;        // (m/s) / sqrt(
 
 namespace gps_plugin
 {
-    class IGNITION_GAZEBO_VISIBLE GpsPlugin:
+    class GZ_SIM_VISIBLE GpsPlugin:
     // This is class a system.
-    public ignition::gazebo::System,
-    public ignition::gazebo::ISystemConfigure,
-    public ignition::gazebo::ISystemPreUpdate,
-    public ignition::gazebo::ISystemPostUpdate
+    public gz::sim::System,
+    public gz::sim::ISystemConfigure,
+    public gz::sim::ISystemPreUpdate,
+    public gz::sim::ISystemPostUpdate
     {
     public: GpsPlugin();
     public: ~GpsPlugin() override;
-    public: void Configure(const ignition::gazebo::Entity &_entity,
+    public: void Configure(const gz::sim::Entity &_entity,
                             const std::shared_ptr<const sdf::Element> &_sdf,
-                            ignition::gazebo::EntityComponentManager &_ecm,
-                            ignition::gazebo::EventManager &/*_eventMgr*/);
-    public: void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-                ignition::gazebo::EntityComponentManager &_ecm) override;
-    public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-                const ignition::gazebo::EntityComponentManager &_ecm) override;
+                            gz::sim::EntityComponentManager &_ecm,
+                            gz::sim::EventManager &/*_eventMgr*/);
+    public: void PreUpdate(const gz::sim::UpdateInfo &_info,
+                gz::sim::EntityComponentManager &_ecm) override;
+    public: void PostUpdate(const gz::sim::UpdateInfo &_info,
+                const gz::sim::EntityComponentManager &_ecm) override;
     private:
         std::chrono::steady_clock::duration last_pub_time_{0};
 
@@ -81,11 +81,11 @@ namespace gps_plugin
 
         std::string model_name_;
 
-        ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
-        ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
+        gz::sim::Model model_{gz::sim::kNullEntity};
+        gz::sim::Entity model_link_{gz::sim::kNullEntity};
 
-        ignition::transport::Node node;
-        ignition::transport::Node::Publisher pub_gps_;
+        gz::transport::Node node;
+        gz::transport::Node::Publisher pub_gps_;
 
         std::string gps_topic_;
         double update_rate_{1.0};
@@ -108,12 +108,12 @@ namespace gps_plugin
         static constexpr int gps_buffer_size_max_ = 1000;
         std::queue<sensor_msgs::msgs::SITLGps> gps_delay_buffer_;
 
-        ignition::math::Vector3d gps_bias_;
-        ignition::math::Vector3d noise_gps_pos_;
-        ignition::math::Vector3d noise_gps_vel_;
-        ignition::math::Vector3d random_walk_gps_;
-        ignition::math::Vector3d gravity_W_;
-        ignition::math::Vector3d velocity_prev_W_;
+        gz::math::Vector3d gps_bias_;
+        gz::math::Vector3d noise_gps_pos_;
+        gz::math::Vector3d noise_gps_vel_;
+        gz::math::Vector3d random_walk_gps_;
+        gz::math::Vector3d gravity_W_;
+        gz::math::Vector3d velocity_prev_W_;
 
         // gps noise parameters
         double std_xy_;    // meters

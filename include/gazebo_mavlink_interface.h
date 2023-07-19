@@ -47,25 +47,25 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include <ignition/common4/ignition/common.hh>
-#include <ignition/gazebo/System.hh>
-#include <ignition/gazebo/Events.hh>
-#include <ignition/gazebo/EventManager.hh>
-#include <ignition/gazebo/Model.hh>
-#include <ignition/gazebo/Util.hh>
-#include "ignition/gazebo/components/Actuators.hh"
-#include <ignition/gazebo/components/AngularVelocity.hh>
-#include <ignition/gazebo/components/Imu.hh>
-#include <ignition/gazebo/components/JointForceCmd.hh>
-#include <ignition/gazebo/components/JointPosition.hh>
-#include <ignition/gazebo/components/JointVelocity.hh>
-#include <ignition/gazebo/components/JointVelocityCmd.hh>
-#include <ignition/gazebo/components/LinearVelocity.hh>
-#include <ignition/gazebo/components/Name.hh>
-#include <ignition/gazebo/components/Pose.hh>
+#include <gz/common5/gz/common.hh>
+#include <gz/sim/System.hh>
+#include <gz/sim/Events.hh>
+#include <gz/sim/EventManager.hh>
+#include <gz/sim/Model.hh>
+#include <gz/sim/Util.hh>
+#include "gz/sim/components/Actuators.hh"
+#include <gz/sim/components/AngularVelocity.hh>
+#include <gz/sim/components/Imu.hh>
+#include <gz/sim/components/JointForceCmd.hh>
+#include <gz/sim/components/JointPosition.hh>
+#include <gz/sim/components/JointVelocity.hh>
+#include <gz/sim/components/JointVelocityCmd.hh>
+#include <gz/sim/components/LinearVelocity.hh>
+#include <gz/sim/components/Name.hh>
+#include <gz/sim/components/Pose.hh>
 
-#include <ignition/transport/Node.hh>
-#include <ignition/msgs/imu.pb.h>
+#include <gz/transport/Node.hh>
+#include <gz/msgs/imu.pb.h>
 #include <Pressure.pb.h>
 #include <MagneticField.pb.h>
 #include <SITLGps.pb.h>
@@ -100,32 +100,32 @@ static const std::string kDefaultBarometerTopic = "/baro";
 
 namespace mavlink_interface
 {
-  class IGNITION_GAZEBO_VISIBLE GazeboMavlinkInterface:
-    public ignition::gazebo::System,
-    public ignition::gazebo::ISystemConfigure,
-    public ignition::gazebo::ISystemPreUpdate,
-    public ignition::gazebo::ISystemPostUpdate
+  class GZ_SIM_VISIBLE GazeboMavlinkInterface:
+    public gz::sim::System,
+    public gz::sim::ISystemConfigure,
+    public gz::sim::ISystemPreUpdate,
+    public gz::sim::ISystemPostUpdate
   {
     public: GazeboMavlinkInterface();
 
     public: ~GazeboMavlinkInterface() override;
-    public: void Configure(const ignition::gazebo::Entity &_entity,
+    public: void Configure(const gz::sim::Entity &_entity,
                             const std::shared_ptr<const sdf::Element> &_sdf,
-                            ignition::gazebo::EntityComponentManager &_ecm,
-                            ignition::gazebo::EventManager &/*_eventMgr*/);
-    public: void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-                ignition::gazebo::EntityComponentManager &_ecm);
-    public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-                const ignition::gazebo::EntityComponentManager &_ecm) override;
+                            gz::sim::EntityComponentManager &_ecm,
+                            gz::sim::EventManager &/*_eventMgr*/);
+    public: void PreUpdate(const gz::sim::UpdateInfo &_info,
+                gz::sim::EntityComponentManager &_ecm);
+    public: void PostUpdate(const gz::sim::UpdateInfo &_info,
+                const gz::sim::EntityComponentManager &_ecm) override;
     private:
-      ignition::common::ConnectionPtr sigIntConnection_;
+      gz::common::ConnectionPtr sigIntConnection_;
       std::shared_ptr<MavlinkInterface> mavlink_interface_;
       bool received_first_actuator_{false};
       Eigen::VectorXd input_reference_;
 
-      ignition::gazebo::Entity entity_{ignition::gazebo::kNullEntity};
-      ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
-      ignition::gazebo::Entity modelLink_{ignition::gazebo::kNullEntity};
+      gz::sim::Entity entity_{gz::sim::kNullEntity};
+      gz::sim::Model model_{gz::sim::kNullEntity};
+      gz::sim::Entity modelLink_{gz::sim::kNullEntity};
       std::string model_name_;
 
       float protocol_version_{2.0};
@@ -140,15 +140,15 @@ namespace mavlink_interface
       bool use_left_elevon_pid_{false};
       bool use_right_elevon_pid_{false};
 
-      void ImuCallback(const ignition::msgs::IMU &_msg);
+      void ImuCallback(const gz::msgs::IMU &_msg);
       void BarometerCallback(const sensor_msgs::msgs::Pressure &_msg);
       void MagnetometerCallback(const sensor_msgs::msgs::MagneticField &_msg);
       void GpsCallback(const sensor_msgs::msgs::SITLGps &_msg);
-      void SendSensorMessages(const ignition::gazebo::UpdateInfo &_info);
+      void SendSensorMessages(const gz::sim::UpdateInfo &_info);
       void SendGroundTruth();
-      void PublishRotorVelocities(ignition::gazebo::EntityComponentManager &_ecm,
+      void PublishRotorVelocities(gz::sim::EntityComponentManager &_ecm,
           const Eigen::VectorXd &_vels);
-      void handle_actuator_controls(const ignition::gazebo::UpdateInfo &_info);
+      void handle_actuator_controls(const gz::sim::UpdateInfo &_info);
       void handle_control(double _dt);
       void onSigInt();
       bool IsRunning();
@@ -163,8 +163,8 @@ namespace mavlink_interface
       double zero_position_armed_[n_out_max];
       int input_index_[n_out_max];
 
-      /// \brief Ignition communication node.
-      ignition::transport::Node node;
+      /// \brief gz communication node.
+      gz::transport::Node node;
 
       std::string opticalFlow_sub_topic_{kDefaultOpticalFlowTopic};
       std::string irlock_sub_topic_{kDefaultIRLockTopic};
@@ -176,8 +176,8 @@ namespace mavlink_interface
 
       std::mutex last_imu_message_mutex_ {};
 
-      ignition::msgs::IMU last_imu_message_;
-      ignition::msgs::Actuators rotor_velocity_message_;
+      gz::msgs::IMU last_imu_message_;
+      gz::msgs::Actuators rotor_velocity_message_;
 
       std::chrono::steady_clock::duration last_imu_time_{0};
       std::chrono::steady_clock::duration lastControllerUpdateTime{0};
@@ -194,9 +194,9 @@ namespace mavlink_interface
 
       double imu_update_interval_ = 0.004; ///< Used for non-lockstep
 
-      ignition::math::Vector3d gravity_W_{ignition::math::Vector3d(0.0, 0.0, -9.8)};
-      ignition::math::Vector3d velocity_prev_W_;
-      ignition::math::Vector3d mag_n_;
+      gz::math::Vector3d gravity_W_{gz::math::Vector3d(0.0, 0.0, -9.8)};
+      gz::math::Vector3d velocity_prev_W_;
+      gz::math::Vector3d mag_n_;
 
       double temperature_;
       double pressure_alt_;

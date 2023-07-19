@@ -24,9 +24,9 @@
 #include <tinyxml.h>
 #include <typeinfo>
 #include <Eigen/Dense>
-#include <ignition/math.hh>
+#include <gz/math.hh>
 #include <sdf/sdf.hh>
-#include <ignition/common4/ignition/common.hh>
+#include <gz/common5/gz/common.hh>
 
 namespace gazebo {
 
@@ -62,7 +62,7 @@ bool getSdfParam(const std::shared_ptr<const sdf::Element> sdf, const std::strin
 /**
  * \brief Get a math::Angle as an angle from [0, 360)
  */
-inline double GetDegrees360(const ignition::math::Angle& angle) {
+inline double GetDegrees360(const gz::math::Angle& angle) {
   double degrees = angle.Degree();
   while (degrees < 0.) degrees += 360.0;
   while (degrees >= 360.0) degrees -= 360.0;
@@ -161,7 +161,7 @@ void copyPosition(const In& in, Out* out) {
  * ENU to NED: +PI/2 rotation about Z (Up) followed by a +PI rotation about X (old East/new North)
  * This rotation is symmetric, so q_ENU_to_NED == q_NED_to_ENU.
  */
-static const auto q_ENU_to_NED = ignition::math::Quaterniond(0, 0.70711, 0.70711, 0);
+static const auto q_ENU_to_NED = gz::math::Quaterniond(0, 0.70711, 0.70711, 0);
 
 /**
  * @brief Quaternion for rotation between body FLU and body FRD frames
@@ -170,15 +170,15 @@ static const auto q_ENU_to_NED = ignition::math::Quaterniond(0, 0.70711, 0.70711
  * to Forward, Left, Up (base_link) frames and vice-versa.
  * This rotation is symmetric, so q_FLU_to_FRD == q_FRD_to_FLU.
  */
-static const auto q_FLU_to_FRD = ignition::math::Quaterniond(0, 1, 0, 0);
+static const auto q_FLU_to_FRD = gz::math::Quaterniond(0, 1, 0, 0);
 
 // sensor X-axis unit vector in `base_link` frame
-static const ignition::math::Vector3d kDownwardRotation = ignition::math::Vector3d(0, 0, -1);
-static const ignition::math::Vector3d kUpwardRotation = ignition::math::Vector3d(0, 0, 1);
-static const ignition::math::Vector3d kBackwardRotation = ignition::math::Vector3d(-1, 0, 0);
-static const ignition::math::Vector3d kForwardRotation = ignition::math::Vector3d(1, 0, 0);
-static const ignition::math::Vector3d kLeftRotation = ignition::math::Vector3d(0, 1, 0);
-static const ignition::math::Vector3d kRightRotation = ignition::math::Vector3d(0, -1, 0);
+static const gz::math::Vector3d kDownwardRotation = gz::math::Vector3d(0, 0, -1);
+static const gz::math::Vector3d kUpwardRotation = gz::math::Vector3d(0, 0, 1);
+static const gz::math::Vector3d kBackwardRotation = gz::math::Vector3d(-1, 0, 0);
+static const gz::math::Vector3d kForwardRotation = gz::math::Vector3d(1, 0, 0);
+static const gz::math::Vector3d kLeftRotation = gz::math::Vector3d(0, 1, 0);
+static const gz::math::Vector3d kRightRotation = gz::math::Vector3d(0, -1, 0);
 
 // Zurich Irchel Park
 static constexpr const double kDefaultHomeLatitude = 47.397742 * M_PI / 180.0;   // rad
@@ -193,7 +193,7 @@ static constexpr const double earth_radius = 6353000.0;      // meters
  * @param[in] pos position in the local frame
  * @return std::pair of Latitude and Longitude
  */
-inline std::pair<double, double> reproject(ignition::math::Vector3d& pos,
+inline std::pair<double, double> reproject(gz::math::Vector3d& pos,
                                     double& lat_home,
                                     double& lon_home,
                                     double& alt_home)

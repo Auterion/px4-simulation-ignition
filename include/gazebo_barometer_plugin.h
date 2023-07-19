@@ -44,12 +44,12 @@
 
 #include <random>
 
-#include <ignition/gazebo/System.hh>
-#include <ignition/transport/Node.hh>
-#include <ignition/gazebo/Model.hh>
-#include <ignition/gazebo/Util.hh>
-#include <ignition/gazebo/components/LinearVelocity.hh>
-#include <ignition/gazebo/components/Pose.hh>
+#include <gz/sim/System.hh>
+#include <gz/transport/Node.hh>
+#include <gz/sim/Model.hh>
+#include <gz/sim/Util.hh>
+#include <gz/sim/components/LinearVelocity.hh>
+#include <gz/sim/components/Pose.hh>
 
 #include <Pressure.pb.h>
 
@@ -59,26 +59,26 @@ static constexpr auto kDefaultAltHome = 488.0; // meters
 
 namespace barometer_plugin
 {
-    class IGNITION_GAZEBO_VISIBLE BarometerPlugin:
+    class GZ_SIM_VISIBLE BarometerPlugin:
     // This is class a system.
-    public ignition::gazebo::System,
-    public ignition::gazebo::ISystemConfigure,
-    public ignition::gazebo::ISystemPreUpdate,
-    public ignition::gazebo::ISystemPostUpdate
+    public gz::sim::System,
+    public gz::sim::ISystemConfigure,
+    public gz::sim::ISystemPreUpdate,
+    public gz::sim::ISystemPostUpdate
     {
     public: BarometerPlugin();
     public: ~BarometerPlugin() override;
-    public: void Configure(const ignition::gazebo::Entity &_entity,
+    public: void Configure(const gz::sim::Entity &_entity,
                             const std::shared_ptr<const sdf::Element> &_sdf,
-                            ignition::gazebo::EntityComponentManager &_ecm,
-                            ignition::gazebo::EventManager &/*_eventMgr*/);
-    public: void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-                ignition::gazebo::EntityComponentManager &_ecm) override;
-    public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-                const ignition::gazebo::EntityComponentManager &_ecm) override;
+                            gz::sim::EntityComponentManager &_ecm,
+                            gz::sim::EventManager &/*_eventMgr*/);
+    public: void PreUpdate(const gz::sim::UpdateInfo &_info,
+                gz::sim::EntityComponentManager &_ecm) override;
+    public: void PostUpdate(const gz::sim::UpdateInfo &_info,
+                const gz::sim::EntityComponentManager &_ecm) override;
     private:
-        ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
-        ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
+        gz::sim::Model model_{gz::sim::kNullEntity};
+        gz::sim::Entity model_link_{gz::sim::kNullEntity};
 
         std::chrono::steady_clock::duration last_pub_time_{0};
 
@@ -89,12 +89,12 @@ namespace barometer_plugin
         std::default_random_engine random_generator_;
         std::normal_distribution<double> standard_normal_distribution_;
 
-        ignition::math::Pose3d pose_model_start_;
-        ignition::math::Vector3d gravity_W_{ignition::math::Vector3d(0.0, 0.0, -9.8)};
+        gz::math::Pose3d pose_model_start_;
+        gz::math::Vector3d gravity_W_{gz::math::Vector3d(0.0, 0.0, -9.8)};
         double alt_home_;
 
-        ignition::transport::Node node;
-        ignition::transport::Node::Publisher pub_baro_;
+        gz::transport::Node node;
+        gz::transport::Node::Publisher pub_baro_;
 
         sensor_msgs::msgs::Pressure baro_msg_;
 

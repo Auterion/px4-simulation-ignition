@@ -50,13 +50,13 @@
 #include <MagneticField.pb.h>
 #include <Groundtruth.pb.h>
 
-#include <ignition/transport/Node.hh>
-#include <ignition/math.hh>
-#include <ignition/gazebo/Model.hh>
-#include <ignition/gazebo/Util.hh>
-#include <ignition/gazebo/components/LinearVelocity.hh>
-#include <ignition/gazebo/System.hh>
-#include <ignition/gazebo/components/Pose.hh>
+#include <gz/transport/Node.hh>
+#include <gz/math.hh>
+#include <gz/sim/Model.hh>
+#include <gz/sim/Util.hh>
+#include <gz/sim/components/LinearVelocity.hh>
+#include <gz/sim/System.hh>
+#include <gz/sim/components/Pose.hh>
 
 #include "geo_mag_declination.h"
 #include <common.h>
@@ -73,35 +73,35 @@ namespace magnetometer_plugin {
 
   typedef const boost::shared_ptr<const sensor_msgs::msgs::Groundtruth> GtPtr;
 
-  class IGNITION_GAZEBO_VISIBLE MagnetometerPlugin:
+  class GZ_SIM_VISIBLE MagnetometerPlugin:
     // This is class a system.
-    public ignition::gazebo::System,
-    public ignition::gazebo::ISystemConfigure,
-    public ignition::gazebo::ISystemPreUpdate,
-    public ignition::gazebo::ISystemPostUpdate
+    public gz::sim::System,
+    public gz::sim::ISystemConfigure,
+    public gz::sim::ISystemPreUpdate,
+    public gz::sim::ISystemPostUpdate
     {
     public: MagnetometerPlugin();
     public: ~MagnetometerPlugin() override;
-    public: void Configure(const ignition::gazebo::Entity &_entity,
+    public: void Configure(const gz::sim::Entity &_entity,
                             const std::shared_ptr<const sdf::Element> &_sdf,
-                            ignition::gazebo::EntityComponentManager &_ecm,
-                            ignition::gazebo::EventManager &/*_eventMgr*/);
-    public: void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-                ignition::gazebo::EntityComponentManager &_ecm) override;
-    public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-                const ignition::gazebo::EntityComponentManager &_ecm) override;
+                            gz::sim::EntityComponentManager &_ecm,
+                            gz::sim::EventManager &/*_eventMgr*/);
+    public: void PreUpdate(const gz::sim::UpdateInfo &_info,
+                gz::sim::EntityComponentManager &_ecm) override;
+    public: void PostUpdate(const gz::sim::UpdateInfo &_info,
+                const gz::sim::EntityComponentManager &_ecm) override;
 
     private:
       void addNoise(Eigen::Vector3d* magnetic_field, const double dt);
       void GroundtruthCallback(const sensor_msgs::msgs::Groundtruth& gt_msg);
       void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
 
-      ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
-      ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
+      gz::sim::Model model_{gz::sim::kNullEntity};
+      gz::sim::Entity model_link_{gz::sim::kNullEntity};
 
       std::string mag_topic_;
-      ignition::transport::Node node;
-      ignition::transport::Node::Publisher pub_mag_;
+      gz::transport::Node node;
+      gz::transport::Node::Publisher pub_mag_;
       std::string gt_sub_topic_;
 
       double groundtruth_lat_rad_;
