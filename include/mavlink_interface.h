@@ -21,41 +21,48 @@
 
 #pragma once
 
+#include <vector>
+#include <queue>
+#include <regex>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <deque>
 #include <atomic>
+#include <chrono>
+#include <memory>
+#include <sstream>
+#include <cassert>
+#include <stdexcept>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/shared_array.hpp>
 #include <boost/system/system_error.hpp>
-#include <cassert>
-#include <chrono>
-#include <condition_variable>
-#include <deque>
-#include <memory>
-#include <mutex>
-#include <regex>
-#include <sstream>
-#include <stdexcept>
-#include <thread>
-#include <vector>
 
-#include <math.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <sys/socket.h>
-#include <cstdlib>
 #include <iostream>
 #include <random>
+#include <stdio.h>
+#include <math.h>
+#include <cstdint>
+#include <cstdlib>
 #include <string>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include <Eigen/Eigen>
+#include<Eigen/StdVector>
 
 #include <development/mavlink.h>
 #include "msgbuffer.h"
 
-static const uint32_t kDefaultMavlinkUdpPort = 14560;
+static const uint32_t kDefaultMavlinkUdpRemotePort = 14560;
+static const uint32_t kDefaultMavlinkUdpLocalPort = 0;
 static const uint32_t kDefaultMavlinkTcpPort = 4560;
-static const uint32_t kDefaultGCSUdpPort = 14550;
+static const uint32_t kDefaultQGCUdpPort = 14550;
 static const uint32_t kDefaultSDKUdpPort = 14540;
+
+static const size_t kMaxRecvBufferSize = 20;
+static const size_t kMaxSendBufferSize = 30;
 
 using lock_guard = std::lock_guard<std::recursive_mutex>;
 static constexpr auto kDefaultDevice = "/dev/ttyACM0";
@@ -67,190 +74,234 @@ static constexpr size_t MAX_TXQ_SIZE = 1000;
 
 //! Rx packer framing status. (same as @p mavlink::mavlink_framing_t)
 enum class Framing : uint8_t {
-  incomplete = MAVLINK_FRAMING_INCOMPLETE,
-  ok = MAVLINK_FRAMING_OK,
-  bad_crc = MAVLINK_FRAMING_BAD_CRC,
-  bad_signature = MAVLINK_FRAMING_BAD_SIGNATURE,
+	incomplete = MAVLINK_FRAMING_INCOMPLETE,
+	ok = MAVLINK_FRAMING_OK,
+	bad_crc = MAVLINK_FRAMING_BAD_CRC,
+	bad_signature = MAVLINK_FRAMING_BAD_SIGNATURE,
 };
 
 //! Enumeration to use on the bitmask in HIL_SENSOR
 enum class SensorSource {
-  ACCEL = 0b111,
-  GYRO = 0b111000,
-  MAG = 0b111000000,
-  BARO = 0b1101000000000,
-  DIFF_PRESS = 0b10000000000,
+  ACCEL		= 0b111,
+  GYRO		= 0b111000,
+  MAG		= 0b111000000,
+  BARO		= 0b1101000000000,
+  DIFF_PRESS	= 0b10000000000,
 };
 
 namespace SensorData {
-struct Imu {
-  Eigen::Vector3d accel_b;
-  Eigen::Vector3d gyro_b;
-};
+    struct Imu {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        Eigen::Vector3d accel_b;
+        Eigen::Vector3d gyro_b;
+    };
 
-struct Barometer {
-  double temperature;
-  double abs_pressure;
-  double pressure_alt;
-};
+    struct Barometer {
+        double temperature;
+        double abs_pressure;
+        double pressure_alt;
+    };
 
-struct Magnetometer {
-  Eigen::Vector3d mag_b;
-};
+    struct Magnetometer {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        Eigen::Vector3d mag_b;
+    };
 
-struct Airspeed {
-  double diff_pressure;
-};
+    struct Airspeed {
+        double diff_pressure;
+    };
+}
 
-struct Gps {
-  int time_utc_usec;
-  int fix_type;
-  double latitude_deg;
-  double longitude_deg;
-  double altitude;
-  double eph;
-  double epv;
-  double velocity;
-  double velocity_north;
-  double velocity_east;
-  double velocity_down;
-  double cog;
-  double satellites_visible;
-  int id;
+/*
+struct HILData {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    int id=-1;
+    bool baro_updated{false};
+    bool diff_press_updated{false};
+    bool mag_updated{false};
+    bool imu_updated{false};
+    double temperature;
+    double pressure_alt;
+    double abs_pressure;
+    double diff_pressure;
+    Eigen::Vector3d mag_b;
+    Eigen::Vector3d accel_b;
+    Eigen::Vector3d gyro_b;
 };
-}  // namespace SensorData
+*/
 
 class MavlinkInterface {
- public:
-  MavlinkInterface();
-  ~MavlinkInterface();
-  void pollForMAVLinkMessages();
-  void pollFromGcsAndSdk();
-  void send_mavlink_message(const mavlink_message_t *message);
-  void forward_mavlink_message(const mavlink_message_t *message);
-  void open();
-  void close();
-  void Load();
-  void SendHeartbeat();
-  void SendSensorMessages(int time_usec);
-  void SendGpsMessages(const SensorData::Gps &data);
-  void UpdateBarometer(const SensorData::Barometer &data);
-  void UpdateAirspeed(const SensorData::Airspeed &data);
-  void UpdateIMU(const SensorData::Imu &data);
-  void UpdateMag(const SensorData::Magnetometer &data);
-  Eigen::VectorXd GetActuatorControls();
-  bool GetArmedState();
-  void onSigInt();
-  inline bool GetReceivedFirstActuator() { return received_first_actuator_; }
-  inline void SetBaudrate(int baudrate) { baudrate_ = baudrate; }
-  inline void SetSerialEnabled(bool serial_enabled) { serial_enabled_ = serial_enabled; }
-  inline void SetUseTcp(bool use_tcp) { use_tcp_ = use_tcp; }
-  inline void SetDevice(std::string device) { device_ = device; }
-  inline void SetEnableLockstep(bool enable_lockstep) { enable_lockstep_ = enable_lockstep; }
-  inline void SetMavlinkAddr(std::string mavlink_addr) { mavlink_addr_str_ = mavlink_addr; }
-  inline void SetMavlinkTcpPort(int mavlink_tcp_port) { mavlink_tcp_port_ = mavlink_tcp_port; }
-  inline void SetMavlinkUdpPort(int mavlink_udp_port) { mavlink_udp_port_ = mavlink_udp_port; }
-  inline void SetGcsAddr(std::string gcs_addr) { gcs_addr_ = gcs_addr; }
-  inline void SetGcsUdpPort(int gcs_udp_port) { gcs_udp_port_ = gcs_udp_port; }
-  inline void SetSdkAddr(std::string sdk_addr) { sdk_addr_ = sdk_addr; }
-  inline void SetSdkUdpPort(int sdk_udp_port) { sdk_udp_port_ = sdk_udp_port; }
-  inline void SetHILMode(bool hil_mode) { hil_mode_ = hil_mode; }
-  inline void SetHILStateLevel(bool hil_state_level) { hil_state_level_ = hil_state_level; }
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    MavlinkInterface();
+    ~MavlinkInterface();
+    void ReadMAVLinkMessages();
+    std::shared_ptr<mavlink_message_t> PopRecvMessage();
+    void PushSendMessage(std::shared_ptr<mavlink_message_t> msg);
+    void PushSendMessage(mavlink_message_t* msg);
+    void send_mavlink_message(const mavlink_message_t *message);
+    void forward_mavlink_message(const mavlink_message_t *message);
+    void open();
+    void close();
+    void Load();
+    void SendHeartbeat();
+    void SendSensorMessages(const uint64_t time_usec);
+    void UpdateBarometer(const SensorData::Barometer &data);
+    void UpdateAirspeed(const SensorData::Airspeed &data);
+    void UpdateIMU(const SensorData::Imu &data);
+    void UpdateMag(const SensorData::Magnetometer &data);
+    Eigen::VectorXd GetActuatorControls();
+    bool GetArmedState();
+    void onSigInt();
+    uint16_t FinalizeOutgoingMessage(mavlink_message_t* msg, uint8_t system_id, uint8_t component_id,
+        uint8_t min_length, uint8_t length, uint8_t crc_extra);
+    bool GetReceivedFirstActuator() {return received_first_actuator_;}
+    void SetBaudrate(int baudrate) {baudrate_ = baudrate;}
+    void SetSerialEnabled(bool serial_enabled) {serial_enabled_ = serial_enabled;}
+    void SetUseTcp(bool use_tcp) {use_tcp_ = use_tcp;}
+    void SetUseTcpClientMode(bool tcp_client_mode) {tcp_client_mode_ = tcp_client_mode;}
+    void SetDevice(std::string device) {device_ = device;}
+    void SetEnableLockstep(bool enable_lockstep) {enable_lockstep_ = enable_lockstep;}
+    void SetMavlinkAddr(std::string mavlink_addr) {mavlink_addr_str_ = mavlink_addr;}
+    void SetMavlinkTcpPort(int mavlink_tcp_port) {mavlink_tcp_port_ = mavlink_tcp_port;}
+    void SetMavlinkUdpRemotePort(int mavlink_udp_port) {mavlink_udp_remote_port_ = mavlink_udp_port;}
+    void SetMavlinkUdpLocalPort(int mavlink_udp_port) {mavlink_udp_local_port_ = mavlink_udp_port;}
+    void SetQgcAddr(std::string qgc_addr) {qgc_addr_ = qgc_addr;}
+    void SetQgcUdpPort(int qgc_udp_port) {qgc_udp_port_ = qgc_udp_port;}
+    void SetSdkAddr(std::string sdk_addr) {sdk_addr_ = sdk_addr;}
+    void SetSdkUdpPort(int sdk_udp_port) {sdk_udp_port_ = sdk_udp_port;}
+    void SetHILMode(bool hil_mode) {hil_mode_ = hil_mode;}
+    void SetHILStateLevel(bool hil_state_level) {hil_state_level_ = hil_state_level;}
+    bool IsRecvBuffEmpty() {return receiver_buffer_.empty();}
 
-  bool ReceivedHeartbeats() const { return received_heartbeats_; }
+    bool SerialEnabled() const { return serial_enabled_; }
+    bool ReceivedHeartbeats() const { return received_heartbeats_; }
 
- private:
-  bool received_first_actuator_;
-  bool armed_;
-  Eigen::VectorXd input_reference_;
+private:
+    bool received_actuator_{false};
+    bool received_first_actuator_{false};
+    bool armed_;
+    bool messages_handled_{false};
+    Eigen::VectorXd input_reference_;
 
-  void handle_message(mavlink_message_t *msg, bool &received_actuator);
-  void handle_heartbeat(mavlink_message_t *msg);
-  void acceptConnections();
+    void handle_message(mavlink_message_t *msg);
+    void handle_heartbeat(mavlink_message_t *msg);
+    void handle_actuator_controls(mavlink_message_t *msg);
+    void acceptConnections();
+    void RegisterNewHILSensorInstance(int id);
+    bool tryConnect();
 
-  // Serial interface
-  void do_read();
-  void parse_buffer(const boost::system::error_code &err, std::size_t bytes_t);
-  inline bool is_open() { return serial_dev.is_open(); }
-  void do_write(bool check_tx_state);
+    // Serial interface
+    void open_serial();
+    void do_serial_read();
+    void parse_serial_buffer(const boost::system::error_code& err, std::size_t bytes_t);
+    inline bool is_serial_open(){
+        return serial_dev_.is_open();
+    }
+    void do_serial_write(bool check_tx_state);
 
-  static const unsigned n_out_max = 16;
+    // UDP/TCP send/receive thread workers
+    void ReceiveWorker();
+    void SendWorker();
 
-  int input_index_[n_out_max];
+    static const unsigned n_out_max = 16;
 
-  struct sockaddr_in local_simulator_addr_;
-  socklen_t local_simulator_addr_len_;
-  struct sockaddr_in remote_simulator_addr_;
-  socklen_t remote_simulator_addr_len_;
+    int input_index_[n_out_max];
 
-  int gcs_udp_port_;
-  struct sockaddr_in remote_gcs_addr_;
-  socklen_t remote_gcs_addr_len_;
-  struct sockaddr_in local_gcs_addr_;
-  std::string gcs_addr_;
-  socklen_t local_gcs_addr_len_;
+    struct sockaddr_in local_simulator_addr_;
+    socklen_t local_simulator_addr_len_;
+    struct sockaddr_in remote_simulator_addr_;
+    socklen_t remote_simulator_addr_len_;
 
-  int sdk_udp_port_;
-  struct sockaddr_in remote_sdk_addr_;
-  socklen_t remote_sdk_addr_len_;
-  struct sockaddr_in local_sdk_addr_;
-  socklen_t local_sdk_addr_len_;
-  std::string sdk_addr_;
+    int qgc_udp_port_{kDefaultQGCUdpPort};
+    struct sockaddr_in remote_qgc_addr_;
+    socklen_t remote_qgc_addr_len_;
+    struct sockaddr_in local_qgc_addr_;
+    std::string qgc_addr_{"INADDR_ANY"};
+    socklen_t local_qgc_addr_len_;
 
-  unsigned char _buf[65535];
-  enum FD_TYPES { LISTEN_FD, CONNECTION_FD, N_FDS };
-  struct pollfd fds_[N_FDS];
-  bool use_tcp_ = false;
-  bool close_conn_ = false;
+    int sdk_udp_port_{kDefaultSDKUdpPort};
+    struct sockaddr_in remote_sdk_addr_;
+    socklen_t remote_sdk_addr_len_;
+    struct sockaddr_in local_sdk_addr_;
+    socklen_t local_sdk_addr_len_;
+    std::string sdk_addr_{"INADDR_ANY"};
 
-  in_addr_t mavlink_addr_;
-  std::string mavlink_addr_str_;
-  int mavlink_udp_port_;  // MAVLink refers to the PX4 simulator interface here
-  int mavlink_tcp_port_;  // MAVLink refers to the PX4 simulator interface here
+    unsigned char buf_[65535];
+    enum FD_TYPES {
+        LISTEN_FD,
+        CONNECTION_FD,
+        N_FDS
+    };
+    struct pollfd fds_[N_FDS];
+    bool use_tcp_{false};
+    bool tcp_client_mode_{false};
+    bool close_conn_{false};
 
-  boost::asio::io_service io_service;
-  boost::asio::serial_port serial_dev;
+    in_addr_t mavlink_addr_;
+    std::string mavlink_addr_str_{"INADDR_ANY"};
+    int mavlink_udp_remote_port_{kDefaultMavlinkUdpRemotePort}; // MAVLink refers to the PX4 simulator interface here
+    int mavlink_udp_local_port_{kDefaultMavlinkUdpLocalPort}; // MAVLink refers to the PX4 simulator interface here
+    int mavlink_tcp_port_{kDefaultMavlinkTcpPort}; // MAVLink refers to the PX4 simulator interface here
 
-  int simulator_socket_fd_;
-  int simulator_tcp_client_fd_;
 
-  int gcs_socket_fd_{-1};
-  int sdk_socket_fd_{-1};
+    int simulator_socket_fd_{0};
+    int simulator_tcp_client_fd_{0};
 
-  bool enable_lockstep_ = false;
+    int qgc_socket_fd_{0};
+    int sdk_socket_fd_{0};
 
-  // Serial interface
-  mavlink_status_t m_status;
-  mavlink_message_t m_buffer;
-  bool serial_enabled_;
-  std::thread io_thread;
-  std::string device_;
+    bool enable_lockstep_{false};
 
-  std::recursive_mutex mutex;
-  std::mutex actuator_mutex;
+    // Serial interface
+    boost::asio::io_service io_service_{};
+    boost::asio::serial_port serial_dev_;
+    bool serial_enabled_{false};
 
-  std::array<uint8_t, MAX_SIZE> rx_buf;
-  unsigned int baudrate_;
-  std::atomic<bool> tx_in_progress;
-  std::deque<MsgBuffer> tx_q;
+    mavlink_status_t m_status_{};
+    mavlink_message_t m_buffer_{};
+    std::thread io_thread_;
+    std::string device_{kDefaultDevice};
 
-  bool hil_mode_;
-  bool hil_state_level_;
+    std::recursive_mutex mutex_;
+    std::mutex actuator_mutex_;
+    std::mutex sensor_msg_mutex_;
 
-  bool baro_updated_;
-  bool diff_press_updated_;
-  bool mag_updated_;
-  bool imu_updated_;
+    std::array<uint8_t, MAX_SIZE> rx_buf_{};
+    unsigned int baudrate_{kDefaultBaudRate};
+    std::atomic<bool> tx_in_progress_;
+    std::deque<MsgBuffer> tx_q_{};
 
-  double temperature_;
-  double pressure_alt_;
-  double abs_pressure_;
-  double diff_pressure_;
-  Eigen::Vector3d mag_b_;
-  Eigen::Vector3d accel_b_;
-  Eigen::Vector3d gyro_b_;
+    bool hil_mode_;
+    bool hil_state_level_;
 
-  std::atomic<bool> gotSigInt_{false};
+    bool baro_updated_;
+    bool diff_press_updated_;
+    bool mag_updated_;
+    bool imu_updated_;
 
-  bool received_heartbeats_ {false};
+    double temperature_;
+    double pressure_alt_;
+    double abs_pressure_;
+    double diff_pressure_;
+    Eigen::Vector3d mag_b_;
+    Eigen::Vector3d accel_b_;
+    Eigen::Vector3d gyro_b_;
+
+    //std::vector<HILData, Eigen::aligned_allocator<HILData>> hil_data_;
+    std::atomic<bool> gotSigInt_ {false};
+
+    bool received_heartbeats_ {false};
+
+    std::mutex receiver_buff_mtx_;
+    std::queue<std::shared_ptr<mavlink_message_t>> receiver_buffer_;
+    std::thread receiver_thread_;
+
+    std::mutex sender_buff_mtx_;
+    std::queue<std::shared_ptr<mavlink_message_t>> sender_buffer_;
+    std::thread sender_thread_;
+    std::condition_variable sender_cv_;
+    std::mutex mav_status_mutex_;
+    mavlink_status_t sender_m_status_{};
+
 };

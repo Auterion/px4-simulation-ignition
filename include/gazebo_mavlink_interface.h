@@ -72,9 +72,8 @@
 
 #include <common.h>
 
-#include <development/mavlink.h>
-#include "msgbuffer.h"
 #include "mavlink_interface.h"
+#include "msgbuffer.h"
 
 
 using lock_guard = std::lock_guard<std::recursive_mutex>;
@@ -157,6 +156,8 @@ namespace mavlink_interface
       void handle_control(double _dt);
       void onSigInt();
       bool IsRunning();
+      bool resolveHostName();
+      void ResolveWorker();
 
       static const unsigned n_out_max = 16;
 
@@ -213,7 +214,6 @@ namespace mavlink_interface
       double pressure_alt_;
       double abs_pressure_;
 
-      bool use_tcp_ = false;
       bool close_conn_ = false;
 
       double optflow_distance;
@@ -222,11 +222,16 @@ namespace mavlink_interface
       bool enable_lockstep_ = false;
       bool serial_enabled_;
       double speed_factor_ = 1.0;
-      int64_t previous_imu_seq_ = 0;
-      unsigned update_skip_factor_ = 1;
+      uint8_t previous_imu_seq_ = 0;
+      uint8_t update_skip_factor_ = 1;
 
       bool hil_mode_{false};
       bool hil_state_level_{false};
+
+      std::string mavlink_hostname_str_;
+      struct hostent *hostptr_{nullptr};
+      bool mavlink_loaded_{false};
+      std::thread hostname_resolver_thread_;
 
       std::atomic<bool> gotSigInt_ {false};
   };
