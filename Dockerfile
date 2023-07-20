@@ -29,7 +29,7 @@ RUN ./build.sh
 
 #---------------------------------------------------------------------
 
-FROM scratch
+FROM ubuntu:20.04
 
 WORKDIR /artifacts
 COPY --from=builder /px4-plugins/build/*.deb /artifacts

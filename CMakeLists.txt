@@ -12,6 +12,7 @@ set(GZ_PLUGIN_VER ${gz-plugin2_VERSION_MAJOR})
 set(GAZEBO_VERSION 7)
 find_package(gz-sim7 REQUIRED)
 find_package(gz-msgs9)
+find_package(gz-sensors7 REQUIRED)
 if(gz-msgs9_FOUND)
   set(GZ_MSG_VER 9)
   set(Protobuf_IMPORT_DIRS ${gz-msgs9_INCLUDE_DIRS})
@@ -50,42 +51,43 @@ target_link_libraries(mavlink_sitl_gazebosim
   PRIVATE ${Boost_LIBRARIES}
   PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
   PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
+  PRIVATE gz-sensors7::gz-sensors7
   PRIVATE gazebo_mavlink_sensor_msgs
 )
 
-add_library(gazebo_barometer_plugin SHARED src/gazebo_barometer_plugin.cpp)
-set_property(TARGET gazebo_barometer_plugin PROPERTY CXX_STANDARD 17)
-target_link_libraries(gazebo_barometer_plugin
-  PRIVATE ${Boost_LIBRARIES}
-  PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
-  PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
-  PRIVATE gazebo_mavlink_sensor_msgs
-)
+#add_library(gazebo_barometer_plugin SHARED src/gazebo_barometer_plugin.cpp)
+#set_property(TARGET gazebo_barometer_plugin PROPERTY CXX_STANDARD 17)
+#target_link_libraries(gazebo_barometer_plugin
+#  PRIVATE ${Boost_LIBRARIES}
+#  PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
+#  PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
+#  PRIVATE gazebo_mavlink_sensor_msgs
+#)
 
-add_library(gazebo_magnetometer_plugin SHARED src/gazebo_magnetometer_plugin.cpp src/geo_mag_declination.cpp)
-set_property(TARGET gazebo_magnetometer_plugin PROPERTY CXX_STANDARD 17)
-target_link_libraries(gazebo_magnetometer_plugin
-  PRIVATE ${Boost_LIBRARIES}
-  PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
-  PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
-  PRIVATE gazebo_mavlink_sensor_msgs
-)
+#add_library(gazebo_magnetometer_plugin SHARED src/gazebo_magnetometer_plugin.cpp src/geo_mag_declination.cpp)
+#set_property(TARGET gazebo_magnetometer_plugin PROPERTY CXX_STANDARD 17)
+#target_link_libraries(gazebo_magnetometer_plugin
+#  PRIVATE ${Boost_LIBRARIES}
+#  PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
+#  PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
+#  PRIVATE gazebo_mavlink_sensor_msgs
+#)
 
-add_library(gazebo_gps_plugin SHARED src/gazebo_gps_plugin.cpp)
-set_property(TARGET gazebo_gps_plugin PROPERTY CXX_STANDARD 17)
-target_link_libraries(gazebo_gps_plugin
-  PRIVATE ${Boost_LIBRARIES}
-  PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
-  PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
-  PRIVATE gazebo_mavlink_sensor_msgs
-)
+#add_library(gazebo_gps_plugin SHARED src/gazebo_gps_plugin.cpp)
+#set_property(TARGET gazebo_gps_plugin PROPERTY CXX_STANDARD 17)
+#target_link_libraries(gazebo_gps_plugin
+#  PRIVATE ${Boost_LIBRARIES}
+#  PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
+#  PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
+#  PRIVATE gazebo_mavlink_sensor_msgs
+#)
 
 include(GNUInstallDirs)
 install(TARGETS
   mavlink_sitl_gazebosim
-  gazebo_barometer_plugin
-  gazebo_magnetometer_plugin
-  gazebo_gps_plugin
+  #gazebo_barometer_plugin
+  #gazebo_magnetometer_plugin
+  #gazebo_gps_plugin
   gazebo_mavlink_sensor_msgs
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
