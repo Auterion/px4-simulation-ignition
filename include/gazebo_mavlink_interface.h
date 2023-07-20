@@ -95,8 +95,13 @@ static const std::string kDefaultOpticalFlowTopic = "/px4flow/link/opticalFlow";
 static const std::string kDefaultIRLockTopic = "/camera/link/irlock";
 static const std::string kDefaultGPSTopic = "/gps";
 static const std::string kDefaultVisionTopic = "/vision_odom";
-static const std::string kDefaultMagTopic = "/mag";
-static const std::string kDefaultBarometerTopic = "/baro";
+static const std::string kDefaultMagTopic = "/magnetometer";
+static const std::string kDefaultBarometerTopic = "/air_pressure";
+
+static const std::string kDefaultImuSensorName = "imu_sensor";
+static const std::string kDefaultGPSSensorName= "gps";
+static const std::string kDefaultMagSensorName = "mag_sensor";
+static const std::string kDefaultBarometerSensorName = "air_pressure_sensor";
 
 namespace mavlink_interface
 {
@@ -166,6 +171,7 @@ namespace mavlink_interface
       /// \brief gz communication node.
       gz::transport::Node node;
 
+      std::string imu_sub_topic_{kDefaultImuTopic};
       std::string opticalFlow_sub_topic_{kDefaultOpticalFlowTopic};
       std::string irlock_sub_topic_{kDefaultIRLockTopic};
       std::string gps_sub_topic_{kDefaultGPSTopic};
@@ -173,6 +179,11 @@ namespace mavlink_interface
       std::string vision_sub_topic_{kDefaultVisionTopic};
       std::string mag_sub_topic_{kDefaultMagTopic};
       std::string baro_sub_topic_{kDefaultBarometerTopic};
+
+      std::string imu_sensor_name_{kDefaultImuSensorName};
+      std::string gps_sensor_name_{kDefaultGPSSensorName};
+      std::string mag_sensor_name_{kDefaultMagSensorName};
+      std::string baro_sensor_name_{kDefaultBarometerSensorName};
 
       std::mutex last_imu_message_mutex_ {};
 

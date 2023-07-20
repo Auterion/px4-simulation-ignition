@@ -72,14 +72,25 @@ void BarometerPlugin::Configure(const gz::sim::Entity &_entity,
     // Get link entity
     model_link_ = model_.LinkByName(_ecm, linkName);
 
-  if(!_ecm.EntityHasComponentType(model_link_, gz::sim::components::WorldPose::typeId))
-  {
-    _ecm.CreateComponent(model_link_, gz::sim::components::WorldPose());
-  }
-  if(!_ecm.EntityHasComponentType(model_link_, gz::sim::components::WorldLinearVelocity::typeId))
-  {
-    _ecm.CreateComponent(model_link_, gz::sim::components::WorldLinearVelocity());
-  }
+    auto world_name_ = gz::sim::scopedName(gz::sim::worldEntity(_ecm), _ecm);
+    auto sensor_name_ = gz::sim::scopedName(_entity, _ecm);
+
+    gzmsg << "[Barometer MavPlugin]: Configure - linkName: " << linkName << "\n";
+    gzmsg << "[Barometer MavPlugin]: Configure - model name: " << model_.Name(_ecm) << "\n";
+    gzmsg << "[Barometer MavPlugin]: model scoped name: " << gz::sim::scopedName(_entity, _ecm) << "\n";
+    gzmsg << "[Barometer MavPlugin]: world name: " << gz::sim::scopedName(gz::sim::worldEntity(_ecm), _ecm) << "\n";
+
+    gzmsg << "[Barometer MavPlugin]: topic: /" << world_name_ << "/" << sensor_name_ << "/air_pressure\n";
+
+
+    if(!_ecm.EntityHasComponentType(model_link_, gz::sim::components::WorldPose::typeId))
+    {
+      _ecm.CreateComponent(model_link_, gz::sim::components::WorldPose());
+    }
+    if(!_ecm.EntityHasComponentType(model_link_, gz::sim::components::WorldLinearVelocity::typeId))
+    {
+      _ecm.CreateComponent(model_link_, gz::sim::components::WorldLinearVelocity());
+    }
 }
 
 

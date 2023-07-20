@@ -22,6 +22,10 @@
 #include "gazebo_mavlink_interface.h"
 
 #include <gz/plugin/Register.hh>
+#include <gz/sensors/Sensor.hh>
+#include <gz/sim/components/AirPressureSensor.hh>
+#include <gz/sim/components/Magnetometer.hh>
+#include <gz/sim/components/Imu.hh>
 
 GZ_ADD_PLUGIN(
     mavlink_interface::GazeboMavlinkInterface,
@@ -68,8 +72,14 @@ void GazeboMavlinkInterface::Configure(const gz::sim::Entity &_entity,
   gazebo::getSdfParam<std::string>(_sdf, "opticalFlowSubTopic",
       opticalFlow_sub_topic_, opticalFlow_sub_topic_);
   gazebo::getSdfParam<std::string>(_sdf, "irlockSubTopic", irlock_sub_topic_, irlock_sub_topic_);
+  gazebo::getSdfParam<std::string>(_sdf, "imuSubTopic", imu_sub_topic_, imu_sub_topic_);
   gazebo::getSdfParam<std::string>(_sdf, "magSubTopic", mag_sub_topic_, mag_sub_topic_);
   gazebo::getSdfParam<std::string>(_sdf, "baroSubTopic", baro_sub_topic_, baro_sub_topic_);
+
+  gazebo::getSdfParam<std::string>(_sdf, "imuSensorName", imu_sensor_name_, imu_sensor_name_);
+  gazebo::getSdfParam<std::string>(_sdf, "gpsSensorName", gps_sensor_name_, gps_sensor_name_);
+  gazebo::getSdfParam<std::string>(_sdf, "magSensorName", mag_sensor_name_, mag_sensor_name_);
+  gazebo::getSdfParam<std::string>(_sdf, "baroSensorName", baro_sensor_name_, baro_sensor_name_);
   groundtruth_sub_topic_ = "/groundtruth";
 
   // set input_reference_ from inputs.control
@@ -138,11 +148,25 @@ void GazeboMavlinkInterface::Configure(const gz::sim::Entity &_entity,
   // // Listen to Ctrl+C / SIGINT.
   sigIntConnection_ = _em.Connect<gz::sim::events::Stop>(std::bind(&GazeboMavlinkInterface::onSigInt, this));
 
-  // Subscribe to messages of other plugins.
-  node.Subscribe("/imu", &GazeboMavlinkInterface::ImuCallback, this);
-  node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/barometer", &GazeboMavlinkInterface::BarometerCallback, this);
-  node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/magnetometer", &GazeboMavlinkInterface::MagnetometerCallback, this);
-  node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/gps", &GazeboMavlinkInterface::GpsCallback, this);
+  auto world_name = "/" + gz::sim::scopedName(gz::sim::worldEntity(_ecm), _ecm);
+
+  // Subscribe to messages of sensors.
+  //auto imu_entity = _ecm.EntityByComponents(gz::sim::components::Name(imu_sensor_name_));
+  auto imu_topic = world_name + gz::sim::topicFromScopedName(
+    _ecm.EntityByComponents(gz::sim::components::Name(imu_sensor_name_)), _ecm, false) + imu_sub_topic_;
+  node.Subscribe(imu_topic, &GazeboMavlinkInterface::ImuCallback, this);
+
+  auto baro_topic = world_name + gz::sim::topicFromScopedName(
+    _ecm.EntityByComponents(gz::sim::components::Name(baro_sensor_name_)), _ecm, false) + baro_sub_topic_;
+  node.Subscribe(baro_topic, &GazeboMavlinkInterface::BarometerCallback, this);
+
+  auto mag_topic = world_name + gz::sim::topicFromScopedName(
+    _ecm.EntityByComponents(gz::sim::components::Name(mag_sensor_name_)), _ecm, false) + mag_sub_topic_;
+  node.Subscribe(mag_topic, &GazeboMavlinkInterface::MagnetometerCallback, this);
+
+  auto gps_topic = world_name + gz::sim::topicFromScopedName(
+    _ecm.EntityByComponents(gz::sim::components::Name(gps_sensor_name_)), _ecm, false) + gps_sub_topic_;
+  node.Subscribe(gps_topic, &GazeboMavlinkInterface::GpsCallback, this);
 
   // This doesn't seem to be used anywhere but we leave it here
   // for potential compatibility
@@ -280,7 +304,6 @@ void GazeboMavlinkInterface::PostUpdate(const gz::sim::UpdateInfo &_info,
 void GazeboMavlinkInterface::ImuCallback(const gz::msgs::IMU &_msg) {
   const std::lock_guard<std::mutex> lock(last_imu_message_mutex_);
   last_imu_message_ = _msg;
-
 }
 
 void GazeboMavlinkInterface::BarometerCallback(const sensor_msgs::msgs::Pressure &_msg) {
