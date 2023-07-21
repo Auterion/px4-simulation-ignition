@@ -118,7 +118,7 @@ void BarometerPlugin::PostUpdate(const gz::sim::UpdateInfo &_info,
     const float alt_msl = (float)alt_home_ - pose_n_z;
     const float temperature_local = temperature_msl - lapse_rate * alt_msl;
     const float pressure_ratio = powf(temperature_msl / temperature_local, 5.256f);
-    const float pressure_msl = 101325.0f; // pressure at MSL
+    const float pressure_msl = 101322.0f; // pressure at MSL
     const float absolute_pressure = pressure_msl / pressure_ratio;
 
     // generate Gaussian noise sequence using polar form of Box-Muller transformation

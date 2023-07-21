@@ -22,12 +22,14 @@
 #include <gazebo_mavlink_interface.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <random>
 
 #include <gz/plugin/Register.hh>
 #include <gz/sensors/Sensor.hh>
 #include <gz/sim/components/AirPressureSensor.hh>
 #include <gz/sim/components/Magnetometer.hh>
 #include <gz/sim/components/Imu.hh>
+#include <gz/sim/components/Pose.hh>
 
 GZ_ADD_PLUGIN(
     mavlink_interface::GazeboMavlinkInterface,
@@ -176,6 +178,7 @@ void GazeboMavlinkInterface::Configure(const gz::sim::Entity &_entity,
 
   auto gps_topic = world_name + gz::sim::topicFromScopedName(
     _ecm.EntityByComponents(gz::sim::components::Name(gps_sensor_name_)), _ecm, false) + gps_sub_topic_;
+  gzmsg << "GPS_TOPIC: " << gps_topic << std::endl;
   node.Subscribe(gps_topic, &GazeboMavlinkInterface::GpsCallback, this);
 
   // This doesn't seem to be used anywhere but we leave it here
@@ -271,6 +274,8 @@ void GazeboMavlinkInterface::Configure(const gz::sim::Entity &_entity,
   model_ = gz::sim::Model(_entity);
   model_name_ = model_.Name(_ecm);
 
+  std::default_random_engine rnd_gen_;
+
   if (hostptr_ || mavlink_hostname_str_.empty() || mavlink_interface_->SerialEnabled()) {
     gzmsg << "--> load mavlink_interface_" << std::endl;
     mavlink_interface_->Load();
@@ -327,32 +332,61 @@ void GazeboMavlinkInterface::ImuCallback(const gz::msgs::IMU &_msg) {
   last_imu_message_ = _msg;
 }
 
-void GazeboMavlinkInterface::BarometerCallback(const sensor_msgs::msgs::Pressure &_msg) {
+void GazeboMavlinkInterface::BarometerCallback(const gz::msgs::FluidPressure &_msg) {
   SensorData::Barometer baro_data;
-  baro_data.temperature = _msg.temperature();
-  baro_data.abs_pressure = _msg.absolute_pressure();
-  baro_data.pressure_alt = _msg.pressure_altitude();
+
+  const float absolute_pressure = AddSimpleNoise((float) _msg.pressure(), 0, 1.5);
+  const float lapse_rate = 0.0065f; // reduction in temperature with altitude (Kelvin/m)
+  const float pressure_msl = 101325.0f; // pressure at MSL
+  const float temperature_msl = 288.0f; // temperature at MSL (Kelvin)
+
+  // Calculate local temperature:
+  // absolute_pressure = pressure_msl / pressure_ratio
+  // =>
+  const float pressure_ratio = pressure_msl / absolute_pressure;
+  // pressure_ratio = powf(temperature_msl / temperature_local, 5.256f)
+  // =>
+  // temperature_local = temperature_msl / powf(pressure_ratio, 1/5.256f)
+  const float temperature_local = temperature_msl / powf(pressure_ratio, 0.19025875);
+
+  // Calculate altitude from pressure:
+  // temperature_local = temperature_msl - lapse_rate * alt_msl;
+  // =>
+  const float alt_msl = (temperature_msl - temperature_local) / lapse_rate;
+
+  //gzmsg << "[BarometerCallback] temperature_local: " << temperature_local << " abs_press: " << absolute_pressure << std::endl;
+
+  baro_data.temperature = temperature_local - 273.15f;
+  baro_data.abs_pressure = absolute_pressure / 100.0f;
+  baro_data.pressure_alt = alt_msl;
   mavlink_interface_->UpdateBarometer(baro_data);
 }
 
-void GazeboMavlinkInterface::MagnetometerCallback(const sensor_msgs::msgs::MagneticField &_msg) {
+void GazeboMavlinkInterface::MagnetometerCallback(const gz::msgs::Magnetometer &_msg) {
   SensorData::Magnetometer mag_data;
-  mag_data.mag_b = Eigen::Vector3d(_msg.magnetic_field().x(),
-    _msg.magnetic_field().y(), _msg.magnetic_field().z());
+  mag_data.mag_b = Eigen::Vector3d(
+    AddSimpleNoise(_msg.field_tesla().x(), 0.0001, 0.009),
+    AddSimpleNoise(_msg.field_tesla().y(), 0.0001, 0.007),
+    AddSimpleNoise(_msg.field_tesla().z(), 0.0001, 0.004)
+  );
   mavlink_interface_->UpdateMag(mag_data);
 }
 
-void GazeboMavlinkInterface::GpsCallback(const sensor_msgs::msgs::SITLGps &_msg) {
+//void GazeboMavlinkInterface::GpsCallback(const sensor_msgs::msgs::SITLGps &_msg) {
+void GazeboMavlinkInterface::GpsCallback(const gz::msgs::NavSat &_msg) {
     // fill HIL GPS Mavlink msg
+  //std::cerr << "GpsCallback" << std::endl;
   mavlink_hil_gps_t hil_gps_msg;
-  hil_gps_msg.time_usec = static_cast<uint64_t>(_msg.time_utc_usec());
+  const auto header = _msg.header();
+  hil_gps_msg.time_usec = static_cast<uint64_t>(header.stamp().nsec()/1000);
   hil_gps_msg.fix_type = 3;
   hil_gps_msg.lat = static_cast<int32_t>(_msg.latitude_deg() * 1e7);
   hil_gps_msg.lon = static_cast<int32_t>(_msg.longitude_deg() * 1e7);
   hil_gps_msg.alt = static_cast<int32_t>(_msg.altitude() * 1000.0);
-  hil_gps_msg.eph = static_cast<uint16_t>(_msg.eph() * 100.0);
-  hil_gps_msg.epv = static_cast<uint16_t>(_msg.epv() * 100.0);
-  hil_gps_msg.vel = static_cast<uint16_t>(_msg.velocity() * 100.0);
+  hil_gps_msg.eph = 100;
+  hil_gps_msg.epv = 100;
+  Eigen::Vector3d v(_msg.velocity_north(), _msg.velocity_east(), -_msg.velocity_up());
+  hil_gps_msg.vel = static_cast<uint16_t>(v.norm() * 100.0);
   hil_gps_msg.vn = static_cast<int16_t>(_msg.velocity_north() * 100.0);
   hil_gps_msg.ve = static_cast<int16_t>(_msg.velocity_east() * 100.0);
   hil_gps_msg.vd = static_cast<int16_t>(-_msg.velocity_up() * 100.0);
@@ -361,7 +395,9 @@ void GazeboMavlinkInterface::GpsCallback(const sensor_msgs::msgs::SITLGps &_msg)
   cog.Normalize();
   hil_gps_msg.cog = static_cast<uint16_t>(gazebo::GetDegrees360(cog) * 100.0);
   hil_gps_msg.satellites_visible = 10;
-  hil_gps_msg.id = 1; // Workaround for mavlink zero trimming feature
+  hil_gps_msg.id = 0; // Workaround for mavlink zero trimming feature
+
+  //gzmsg << "[GpsCallback] alt: " << _msg.altitude() << std::endl;
 
   // send HIL_GPS Mavlink msg
   if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
@@ -405,15 +441,14 @@ void GazeboMavlinkInterface::SendSensorMessages(const gz::sim::UpdateInfo &_info
   // required so to keep the timestamps on sync and the lockstep can
   // work properly
   gz::math::Vector3d accel_b = q_FLU_to_FRD.RotateVector(gz::math::Vector3d(
-    last_imu_message.linear_acceleration().x(),
-    last_imu_message.linear_acceleration().y(),
-    last_imu_message.linear_acceleration().z()));
+    AddSimpleNoise(last_imu_message.linear_acceleration().x(), 0, 0.006),
+    AddSimpleNoise(last_imu_message.linear_acceleration().y(), 0, 0.006),
+    AddSimpleNoise(last_imu_message.linear_acceleration().z(), 0, 0.030)));
 
   gz::math::Vector3d gyro_b = q_FLU_to_FRD.RotateVector(gz::math::Vector3d(
-    last_imu_message.angular_velocity().x(),
-    last_imu_message.angular_velocity().y(),
-    last_imu_message.angular_velocity().z()));
-
+    AddSimpleNoise(last_imu_message.angular_velocity().x(), 0, 0.001),
+    AddSimpleNoise(last_imu_message.angular_velocity().y(), 0, 0.001),
+    AddSimpleNoise(last_imu_message.angular_velocity().z(), 0, 0.001)));
   
   uint64_t time_usec = std::chrono::duration_cast<std::chrono::duration<uint64_t>>(_info.simTime * 1e6).count();
   SensorData::Imu imu_data;
@@ -605,4 +640,9 @@ void GazeboMavlinkInterface::ResolveWorker()
   gzmsg << "[ResolveWorker] --> load mavlink_interface_" << std::endl;
   mavlink_interface_->Load();
   mavlink_loaded_ = true;
+}
+
+float GazeboMavlinkInterface::AddSimpleNoise(float value, float mean, float stddev) {
+  std::normal_distribution<float> dist(mean, stddev);
+  return value + dist(rnd_gen_);
 }

@@ -145,9 +145,9 @@ namespace mavlink_interface
       bool use_right_elevon_pid_{false};
 
       void ImuCallback(const gz::msgs::IMU &_msg);
-      void BarometerCallback(const sensor_msgs::msgs::Pressure &_msg);
-      void MagnetometerCallback(const sensor_msgs::msgs::MagneticField &_msg);
-      void GpsCallback(const sensor_msgs::msgs::SITLGps &_msg);
+      void BarometerCallback(const gz::msgs::FluidPressure &_msg);
+      void MagnetometerCallback(const gz::msgs::Magnetometer &_msg);
+      void GpsCallback(const gz::msgs::NavSat &_msg);
       void SendSensorMessages(const gz::sim::UpdateInfo &_info);
       void SendGroundTruth();
       void PublishRotorVelocities(gz::sim::EntityComponentManager &_ecm,
@@ -158,6 +158,7 @@ namespace mavlink_interface
       bool IsRunning();
       bool resolveHostName();
       void ResolveWorker();
+      float AddSimpleNoise(float value, float mean, float stddev);
 
       static const unsigned n_out_max = 16;
 
@@ -234,6 +235,8 @@ namespace mavlink_interface
       std::thread hostname_resolver_thread_;
 
       std::atomic<bool> gotSigInt_ {false};
+
+      std::default_random_engine rnd_gen_;
   };
 }
 
