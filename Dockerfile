@@ -29,7 +29,7 @@ RUN ./build.sh
 
 #---------------------------------------------------------------------
 
-FROM ubuntu:20.04
+FROM busybox
 
 WORKDIR /artifacts
 COPY --from=builder /px4-plugins/build/*.deb /artifacts

@@ -66,9 +66,6 @@
 
 #include <gz/transport/Node.hh>
 #include <gz/msgs/imu.pb.h>
-#include <Pressure.pb.h>
-#include <MagneticField.pb.h>
-#include <SITLGps.pb.h>
 
 #include <common.h>
 

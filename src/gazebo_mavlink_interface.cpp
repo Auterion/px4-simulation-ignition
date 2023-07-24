@@ -178,7 +178,6 @@ void GazeboMavlinkInterface::Configure(const gz::sim::Entity &_entity,
 
   auto gps_topic = world_name + gz::sim::topicFromScopedName(
     _ecm.EntityByComponents(gz::sim::components::Name(gps_sensor_name_)), _ecm, false) + gps_sub_topic_;
-  gzmsg << "GPS_TOPIC: " << gps_topic << std::endl;
   node.Subscribe(gps_topic, &GazeboMavlinkInterface::GpsCallback, this);
 
   // This doesn't seem to be used anywhere but we leave it here

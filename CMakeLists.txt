@@ -26,17 +26,6 @@ find_package(MAVLink)
 
 find_package(Protobuf REQUIRED)
 
-PROTOBUF_GENERATE_CPP(SEN_PROTO_SRCS SEN_PROTO_HDRS
-  msgs/Pressure.proto
-  msgs/MagneticField.proto
-  msgs/Groundtruth.proto
-  msgs/SITLGps.proto
-  )
-set_source_files_properties(${SEN_PROTO_SRC} ${SEN_PROTO_HDRS}
-                           PROPERTIES GENERATED TRUE)
-add_library(gazebo_mavlink_sensor_msgs SHARED ${SEN_PROTO_SRCS})
-target_link_libraries(gazebo_mavlink_sensor_msgs gz-msgs${GZ_MSG_VER})
-
 include_directories(${CMAKE_BINARY_DIR})
 
 include_directories(
@@ -52,43 +41,11 @@ target_link_libraries(mavlink_sitl_gazebosim
   PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
   PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
   PRIVATE gz-sensors7::gz-sensors7
-  PRIVATE gazebo_mavlink_sensor_msgs
 )
-
-#add_library(gazebo_barometer_plugin SHARED src/gazebo_barometer_plugin.cpp)
-#set_property(TARGET gazebo_barometer_plugin PROPERTY CXX_STANDARD 17)
-#target_link_libraries(gazebo_barometer_plugin
-#  PRIVATE ${Boost_LIBRARIES}
-#  PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
-#  PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
-#  PRIVATE gazebo_mavlink_sensor_msgs
-#)
-
-#add_library(gazebo_magnetometer_plugin SHARED src/gazebo_magnetometer_plugin.cpp src/geo_mag_declination.cpp)
-#set_property(TARGET gazebo_magnetometer_plugin PROPERTY CXX_STANDARD 17)
-#target_link_libraries(gazebo_magnetometer_plugin
-#  PRIVATE ${Boost_LIBRARIES}
-#  PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
-#  PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
-#  PRIVATE gazebo_mavlink_sensor_msgs
-#)
-
-#add_library(gazebo_gps_plugin SHARED src/gazebo_gps_plugin.cpp)
-#set_property(TARGET gazebo_gps_plugin PROPERTY CXX_STANDARD 17)
-#target_link_libraries(gazebo_gps_plugin
-#  PRIVATE ${Boost_LIBRARIES}
-#  PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
-#  PRIVATE gz-sim${GAZEBO_VERSION}::gz-sim${GAZEBO_VERSION}
-#  PRIVATE gazebo_mavlink_sensor_msgs
-#)
 
 include(GNUInstallDirs)
 install(TARGETS
   mavlink_sitl_gazebosim
-  #gazebo_barometer_plugin
-  #gazebo_magnetometer_plugin
-  #gazebo_gps_plugin
-  gazebo_mavlink_sensor_msgs
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
 
