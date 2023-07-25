@@ -8,6 +8,10 @@ on:
     branches:
       - '*'
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   Firmware-build:
     runs-on: ubuntu-latest
