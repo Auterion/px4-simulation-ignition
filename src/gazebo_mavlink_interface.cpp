@@ -364,9 +364,9 @@ void GazeboMavlinkInterface::BarometerCallback(const gz::msgs::FluidPressure &_m
 void GazeboMavlinkInterface::MagnetometerCallback(const gz::msgs::Magnetometer &_msg) {
   SensorData::Magnetometer mag_data;
   mag_data.mag_b = Eigen::Vector3d(
-    AddSimpleNoise(_msg.field_tesla().x(), 0.0001, 0.009),
-    AddSimpleNoise(_msg.field_tesla().y(), 0.0001, 0.007),
-    AddSimpleNoise(_msg.field_tesla().z(), 0.0001, 0.004)
+    AddSimpleNoise(_msg.field_tesla().x(), 0, 0.0001),
+    AddSimpleNoise(_msg.field_tesla().y(), 0, 0.0001),
+    AddSimpleNoise(_msg.field_tesla().z(), 0, 0.0001)
   );
   mavlink_interface_->UpdateMag(mag_data);
 }
