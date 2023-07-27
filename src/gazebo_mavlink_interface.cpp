@@ -377,7 +377,7 @@ void GazeboMavlinkInterface::GpsCallback(const gz::msgs::NavSat &_msg) {
   //std::cerr << "GpsCallback" << std::endl;
   mavlink_hil_gps_t hil_gps_msg;
   const auto header = _msg.header();
-  hil_gps_msg.time_usec = static_cast<uint64_t>(header.stamp().nsec()/1000);
+  hil_gps_msg.time_usec = static_cast<uint64_t>((header.stamp().sec() * 1000000) + (header.stamp().nsec() / 1000));
   hil_gps_msg.fix_type = 3;
   hil_gps_msg.lat = static_cast<int32_t>(_msg.latitude_deg() * 1e7);
   hil_gps_msg.lon = static_cast<int32_t>(_msg.longitude_deg() * 1e7);
