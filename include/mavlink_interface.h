@@ -58,8 +58,6 @@
 static const uint32_t kDefaultMavlinkUdpRemotePort = 14560;
 static const uint32_t kDefaultMavlinkUdpLocalPort = 0;
 static const uint32_t kDefaultMavlinkTcpPort = 4560;
-static const uint32_t kDefaultQGCUdpPort = 14550;
-static const uint32_t kDefaultSDKUdpPort = 14540;
 
 static const size_t kMaxRecvBufferSize = 20;
 static const size_t kMaxSendBufferSize = 30;
@@ -144,7 +142,6 @@ public:
     void open();
     void close();
     void Load();
-    void SendHeartbeat();
     void SendSensorMessages(const uint64_t time_usec);
     void UpdateBarometer(const SensorData::Barometer &data);
     void UpdateAirspeed(const SensorData::Airspeed &data);
@@ -157,7 +154,6 @@ public:
         uint8_t min_length, uint8_t length, uint8_t crc_extra);
     bool GetReceivedFirstActuator() {return received_first_actuator_;}
     void SetBaudrate(int baudrate) {baudrate_ = baudrate;}
-    void SetSerialEnabled(bool serial_enabled) {serial_enabled_ = serial_enabled;}
     void SetUseTcp(bool use_tcp) {use_tcp_ = use_tcp;}
     void SetUseTcpClientMode(bool tcp_client_mode) {tcp_client_mode_ = tcp_client_mode;}
     void SetDevice(std::string device) {device_ = device;}
@@ -166,15 +162,8 @@ public:
     void SetMavlinkTcpPort(int mavlink_tcp_port) {mavlink_tcp_port_ = mavlink_tcp_port;}
     void SetMavlinkUdpRemotePort(int mavlink_udp_port) {mavlink_udp_remote_port_ = mavlink_udp_port;}
     void SetMavlinkUdpLocalPort(int mavlink_udp_port) {mavlink_udp_local_port_ = mavlink_udp_port;}
-    void SetQgcAddr(std::string qgc_addr) {qgc_addr_ = qgc_addr;}
-    void SetQgcUdpPort(int qgc_udp_port) {qgc_udp_port_ = qgc_udp_port;}
-    void SetSdkAddr(std::string sdk_addr) {sdk_addr_ = sdk_addr;}
-    void SetSdkUdpPort(int sdk_udp_port) {sdk_udp_port_ = sdk_udp_port;}
-    void SetHILMode(bool hil_mode) {hil_mode_ = hil_mode;}
-    void SetHILStateLevel(bool hil_state_level) {hil_state_level_ = hil_state_level;}
     bool IsRecvBuffEmpty() {return receiver_buffer_.empty();}
 
-    bool SerialEnabled() const { return serial_enabled_; }
     bool ReceivedHeartbeats() const { return received_heartbeats_; }
 
 private:
@@ -191,15 +180,6 @@ private:
     void RegisterNewHILSensorInstance(int id);
     bool tryConnect();
 
-    // Serial interface
-    void open_serial();
-    void do_serial_read();
-    void parse_serial_buffer(const boost::system::error_code& err, std::size_t bytes_t);
-    inline bool is_serial_open(){
-        return serial_dev_.is_open();
-    }
-    void do_serial_write(bool check_tx_state);
-
     // UDP/TCP send/receive thread workers
     void ReceiveWorker();
     void SendWorker();
@@ -212,20 +192,6 @@ private:
     socklen_t local_simulator_addr_len_;
     struct sockaddr_in remote_simulator_addr_;
     socklen_t remote_simulator_addr_len_;
-
-    int qgc_udp_port_{kDefaultQGCUdpPort};
-    struct sockaddr_in remote_qgc_addr_;
-    socklen_t remote_qgc_addr_len_;
-    struct sockaddr_in local_qgc_addr_;
-    std::string qgc_addr_{"INADDR_ANY"};
-    socklen_t local_qgc_addr_len_;
-
-    int sdk_udp_port_{kDefaultSDKUdpPort};
-    struct sockaddr_in remote_sdk_addr_;
-    socklen_t remote_sdk_addr_len_;
-    struct sockaddr_in local_sdk_addr_;
-    socklen_t local_sdk_addr_len_;
-    std::string sdk_addr_{"INADDR_ANY"};
 
     unsigned char buf_[65535];
     enum FD_TYPES {
@@ -248,15 +214,7 @@ private:
     int simulator_socket_fd_{0};
     int simulator_tcp_client_fd_{0};
 
-    int qgc_socket_fd_{0};
-    int sdk_socket_fd_{0};
-
     bool enable_lockstep_{false};
-
-    // Serial interface
-    boost::asio::io_service io_service_{};
-    boost::asio::serial_port serial_dev_;
-    bool serial_enabled_{false};
 
     mavlink_status_t m_status_{};
     mavlink_message_t m_buffer_{};
@@ -271,9 +229,6 @@ private:
     unsigned int baudrate_{kDefaultBaudRate};
     std::atomic<bool> tx_in_progress_;
     std::deque<MsgBuffer> tx_q_{};
-
-    bool hil_mode_;
-    bool hil_state_level_;
 
     bool baro_updated_;
     bool diff_press_updated_;

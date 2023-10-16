@@ -1,10 +1,5 @@
 #include "mavlink_interface.h"
 
-MavlinkInterface::MavlinkInterface() :
-    serial_dev_(io_service_){
-
-}
-
 MavlinkInterface::~MavlinkInterface() {
   close();
 }
@@ -19,187 +14,119 @@ void MavlinkInterface::Load()
       abort();
     }
   }
-  local_qgc_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
-  if (qgc_addr_ != "INADDR_ANY") {
-    local_qgc_addr_.sin_addr.s_addr = inet_addr(qgc_addr_.c_str());
-    if (local_qgc_addr_.sin_addr.s_addr == INADDR_NONE) {
-      std::cerr << "Invalid qgc_addr: " << qgc_addr_ << ", aborting" << std::endl;
-      abort();
-    }
-  }
-  local_sdk_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
-  if (sdk_addr_ != "INADDR_ANY") {
-    local_sdk_addr_.sin_addr.s_addr = inet_addr(sdk_addr_.c_str());
-    if (local_sdk_addr_.sin_addr.s_addr == INADDR_NONE) {
-      std::cerr << "Invalid sdk_addr: " << sdk_addr_ << ", aborting" << std::endl;
-      abort();
-    }
-  }
 
   // initialize sender status to zero
   memset((char *)&sender_m_status_, 0, sizeof(sender_m_status_));
 
-  if (hil_mode_) {
+  memset((char *)&remote_simulator_addr_, 0, sizeof(remote_simulator_addr_));
+  remote_simulator_addr_.sin_family = AF_INET;
+  remote_simulator_addr_len_ = sizeof(remote_simulator_addr_);
 
-    local_qgc_addr_.sin_family = AF_INET;
-    local_qgc_addr_.sin_port = htons(0);
-    local_qgc_addr_len_ = sizeof(local_qgc_addr_);
+  memset((char *)&local_simulator_addr_, 0, sizeof(local_simulator_addr_));
+  local_simulator_addr_.sin_family = AF_INET;
+  local_simulator_addr_len_ = sizeof(local_simulator_addr_);
 
-    remote_qgc_addr_.sin_family = AF_INET;
-    remote_qgc_addr_.sin_port = htons(qgc_udp_port_);
-    remote_qgc_addr_len_ = sizeof(remote_qgc_addr_);
+  if (use_tcp_) {
 
-    local_sdk_addr_.sin_family = AF_INET;
-    local_sdk_addr_.sin_port = htons(0);
-    local_sdk_addr_len_ = sizeof(local_sdk_addr_);
-
-    remote_sdk_addr_.sin_family = AF_INET;
-    remote_sdk_addr_.sin_port = htons(sdk_udp_port_);
-    remote_sdk_addr_len_ = sizeof(remote_sdk_addr_);
-
-    if ((qgc_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-      std::cerr << "Creating QGC UDP socket failed: " << strerror(errno) << ", aborting" << std::endl;
-      abort();
-    }
-
-    if (bind(qgc_socket_fd_, (struct sockaddr *)&local_qgc_addr_, local_qgc_addr_len_) < 0) {
-      std::cerr << "QGC UDP bind failed: " << strerror(errno) << ", aborting" << std::endl;
-      abort();
-    }
-
-    if ((sdk_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-      std::cerr << "Creating SDK UDP socket failed: " << strerror(errno) << ", aborting" << std::endl;
-      abort();
-    }
-
-    if (bind(sdk_socket_fd_, (struct sockaddr *)&local_sdk_addr_, local_sdk_addr_len_) < 0) {
-      std::cerr << "SDK UDP bind failed: " << strerror(errno) << ", aborting" << std::endl;
-      abort();
-    }
-
-  }
-
-  if (serial_enabled_) {
-    // Set up serial interface
-	  io_service_.post(std::bind(&MavlinkInterface::do_serial_read, this));
-
-    // run io_service for async io
-    io_thread_ = std::thread([this] () {
-    	io_service_.run();
-    });
-    open_serial();
-
-  } else {
-    memset((char *)&remote_simulator_addr_, 0, sizeof(remote_simulator_addr_));
-    remote_simulator_addr_.sin_family = AF_INET;
-    remote_simulator_addr_len_ = sizeof(remote_simulator_addr_);
-
-    memset((char *)&local_simulator_addr_, 0, sizeof(local_simulator_addr_));
-    local_simulator_addr_.sin_family = AF_INET;
-    local_simulator_addr_len_ = sizeof(local_simulator_addr_);
-
-    if (use_tcp_) {
-
-        if ((simulator_socket_fd_ = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-          std::cerr << "Creating TCP socket failed: " << strerror(errno) << ", aborting" << std::endl;
-          abort();
-        }
-
-        int yes = 1;
-        int result = setsockopt(simulator_socket_fd_, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
-        if (result != 0) {
-          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
-          abort();
-        }
-
-        struct linger nolinger {};
-        nolinger.l_onoff = 1;
-        nolinger.l_linger = 0;
-
-        result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_LINGER, &nolinger, sizeof(nolinger));
-        if (result != 0) {
-          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
-          abort();
-        }
-
-        // The socket reuse is necessary for reconnecting to the same address
-        // if the socket does not close but gets stuck in TIME_WAIT. This can happen
-        // if the server is suddenly closed, for example, if the robot is deleted in gazebo.
-        int socket_reuse = 1;
-        result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &socket_reuse, sizeof(socket_reuse));
-        if (result != 0) {
-          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
-          abort();
-        }
-
-        // Same as above but for a given port
-        result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEPORT, &socket_reuse, sizeof(socket_reuse));
-        if (result != 0) {
-          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
-          abort();
-        }
-
-      if (tcp_client_mode_) {
-        // TCP client mode
-        local_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
-        local_simulator_addr_.sin_port = htons(0);
-        remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
-        remote_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
-        memset(fds_, 0, sizeof(fds_));
-      } else {
-        // TCP server mode
-        local_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
-        local_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
-
-        if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
-          std::cerr << "bind failed: " << strerror(errno) << ", aborting" << std::endl;
-          abort();
-        }
-
-        errno = 0;
-        if (listen(simulator_socket_fd_, 0) < 0) {
-          std::cerr << "listen failed: " << strerror(errno) << ", aborting" << std::endl;
-          abort();
-        }
-
-        memset(fds_, 0, sizeof(fds_));
-        fds_[LISTEN_FD].fd = simulator_socket_fd_;
-        fds_[LISTEN_FD].events = POLLIN; // only listens for new connections on tcp
-      }
-    } else {
-      // When connecting to SITL, we specify the port where the mavlink traffic originates from.
-      remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
-      remote_simulator_addr_.sin_port = htons(mavlink_udp_remote_port_);
-      local_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
-      local_simulator_addr_.sin_port = htons(mavlink_udp_local_port_);
-
-      if ((simulator_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        std::cerr << "Creating UDP socket failed: " << strerror(errno) << ", aborting" << std::endl;
+      if ((simulator_socket_fd_ = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        std::cerr << "Creating TCP socket failed: " << strerror(errno) << ", aborting" << std::endl;
         abort();
       }
+
+      int yes = 1;
+      int result = setsockopt(simulator_socket_fd_, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
+      if (result != 0) {
+        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
+        abort();
+      }
+
+      struct linger nolinger {};
+      nolinger.l_onoff = 1;
+      nolinger.l_linger = 0;
+
+      result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_LINGER, &nolinger, sizeof(nolinger));
+      if (result != 0) {
+        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
+        abort();
+      }
+
+      // The socket reuse is necessary for reconnecting to the same address
+      // if the socket does not close but gets stuck in TIME_WAIT. This can happen
+      // if the server is suddenly closed, for example, if the robot is deleted in gazebo.
+      int socket_reuse = 1;
+      result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &socket_reuse, sizeof(socket_reuse));
+      if (result != 0) {
+        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
+        abort();
+      }
+
+      // Same as above but for a given port
+      result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEPORT, &socket_reuse, sizeof(socket_reuse));
+      if (result != 0) {
+        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
+        abort();
+      }
+
+    if (tcp_client_mode_) {
+      // TCP client mode
+      local_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
+      local_simulator_addr_.sin_port = htons(0);
+      remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
+      remote_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
+      memset(fds_, 0, sizeof(fds_));
+    } else {
+      // TCP server mode
+      local_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
+      local_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
 
       if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
         std::cerr << "bind failed: " << strerror(errno) << ", aborting" << std::endl;
         abort();
       }
 
-      memset(fds_, 0, sizeof(fds_));
-      fds_[CONNECTION_FD].fd = simulator_socket_fd_;
-      fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
+      errno = 0;
+      if (listen(simulator_socket_fd_, 0) < 0) {
+        std::cerr << "listen failed: " << strerror(errno) << ", aborting" << std::endl;
+        abort();
+      }
 
+      memset(fds_, 0, sizeof(fds_));
+      fds_[LISTEN_FD].fd = simulator_socket_fd_;
+      fds_[LISTEN_FD].events = POLLIN; // only listens for new connections on tcp
+    }
+  } else {
+    // When connecting to SITL, we specify the port where the mavlink traffic originates from.
+    remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
+    remote_simulator_addr_.sin_port = htons(mavlink_udp_remote_port_);
+    local_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
+    local_simulator_addr_.sin_port = htons(mavlink_udp_local_port_);
+
+    std::cout << "Creating UDP socket for SITL input on local port : " << mavlink_udp_local_port_ << " and remote port " << mavlink_udp_remote_port_ << std::endl;
+
+    if ((simulator_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+      std::cerr << "Creating UDP socket failed: " << strerror(errno) << ", aborting" << std::endl;
+      abort();
     }
 
-    // Start mavlink message receiver thread
-    receiver_thread_ = std::thread([this] () {
-      ReceiveWorker();
-    });
-    // Start mavlink message sender thread
-    sender_thread_ = std::thread([this] () {
-      SendWorker();
-    });
+    if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
+      std::cerr << "bind failed: " << strerror(errno) << ", aborting" << std::endl;
+      abort();
+    }
+
+    memset(fds_, 0, sizeof(fds_));
+    fds_[CONNECTION_FD].fd = simulator_socket_fd_;
+    fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
 
   }
-  // hil_data_.resize(1);
+
+  // Start mavlink message receiver thread
+  receiver_thread_ = std::thread([this] () {
+    ReceiveWorker();
+  });
+  // Start mavlink message sender thread
+  sender_thread_ = std::thread([this] () {
+    SendWorker();
+  });
 }
 
 
@@ -296,19 +223,15 @@ void MavlinkInterface::ReceiveWorker() {
  */
 
 void MavlinkInterface::PushSendMessage(std::shared_ptr<mavlink_message_t> msg) {
-  if (serial_enabled_) {
-    send_mavlink_message(msg.get());
-  } else {
-    const std::lock_guard<std::mutex> guard(sender_buff_mtx_);
-    sender_buffer_.push(msg);
-    sender_cv_.notify_one();
+  const std::lock_guard<std::mutex> guard(sender_buff_mtx_);
+  sender_buffer_.push(msg);
+  sender_cv_.notify_one();
 
-    if (sender_buffer_.size() > kMaxSendBufferSize) {
-      sender_buffer_.pop();
-      // Starts reporting buffer overflows only after the connection is established to FC
-      if (received_first_actuator_) {
-        std::cerr << "PushSendMessage - Messages buffer overflow!" << std::endl;
-      }
+  if (sender_buffer_.size() > kMaxSendBufferSize) {
+    sender_buffer_.pop();
+    // Starts reporting buffer overflows only after the connection is established to FC
+    if (received_first_actuator_) {
+      std::cerr << "PushSendMessage - Messages buffer overflow!" << std::endl;
     }
   }
 }
@@ -351,27 +274,6 @@ void MavlinkInterface::SendWorker() {
   }
 
   std::cout << "[" << thrd_name << "] Shutdown.." << std::endl;
-}
-
-void MavlinkInterface::SendHeartbeat() {
-  // In order to start the mavlink instance on Pixhawk over USB, we need to send heartbeats.
-  if (hil_mode_) {
-    mavlink_message_t msg;
-    mavlink_msg_heartbeat_pack_chan(
-      1, 200,
-      MAVLINK_COMM_0,
-      &msg,
-      MAV_TYPE_GENERIC,
-      MAV_AUTOPILOT_INVALID,
-      0, 0, 0);
-    // Override default global mavlink channel status with instance specific status
-    FinalizeOutgoingMessage(&msg, 1, 200,
-      MAVLINK_MSG_ID_HEARTBEAT_MIN_LEN,
-      MAVLINK_MSG_ID_HEARTBEAT_LEN,
-      MAVLINK_MSG_ID_HEARTBEAT_CRC);
-    auto msg_shared = std::make_shared<mavlink_message_t>(msg);
-    PushSendMessage(msg_shared);
-  }
 }
 
 void MavlinkInterface::SendSensorMessages(uint64_t time_usec) {
@@ -430,17 +332,15 @@ void MavlinkInterface::SendSensorMessages(uint64_t time_usec) {
   }
   sensor_msg_mutex_.unlock();
 
-  if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
-    mavlink_message_t msg;
-    mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-    // Override default global mavlink channel status with instance specific status
-    FinalizeOutgoingMessage(&msg, 1, 200,
-      MAVLINK_MSG_ID_HIL_SENSOR_MIN_LEN,
-      MAVLINK_MSG_ID_HIL_SENSOR_LEN,
-      MAVLINK_MSG_ID_HIL_SENSOR_CRC);
-    auto msg_shared = std::make_shared<mavlink_message_t>(msg);
-    PushSendMessage(msg_shared);
-  }
+  mavlink_message_t msg;
+  mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
+  // Override default global mavlink channel status with instance specific status
+  FinalizeOutgoingMessage(&msg, 1, 200,
+    MAVLINK_MSG_ID_HIL_SENSOR_MIN_LEN,
+    MAVLINK_MSG_ID_HIL_SENSOR_LEN,
+    MAVLINK_MSG_ID_HIL_SENSOR_CRC);
+  auto msg_shared = std::make_shared<mavlink_message_t>(msg);
+  PushSendMessage(msg_shared);
 }
 
 void MavlinkInterface::UpdateBarometer(const SensorData::Barometer &data) {
@@ -478,9 +378,6 @@ void MavlinkInterface::UpdateMag(const SensorData::Magnetometer &data) {
 void MavlinkInterface::ReadMAVLinkMessages()
 {
   if (gotSigInt_) {
-    return;
-  }
-  if (serial_enabled_) {
     return;
   }
 
@@ -589,33 +486,6 @@ void MavlinkInterface::handle_actuator_controls(mavlink_message_t *msg)
   received_first_actuator_ = true;
 }
 
-void MavlinkInterface::forward_mavlink_message(const mavlink_message_t *message)
-{
-  if (gotSigInt_) {
-    return;
-  }
-
-  uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-  int packetlen = mavlink_msg_to_send_buffer(buffer, message);
-  ssize_t len;
-  if (qgc_socket_fd_ > 0) {
-    len = sendto(qgc_socket_fd_, buffer, packetlen, 0, (struct sockaddr *)&remote_qgc_addr_, remote_qgc_addr_len_);
-
-    if (len <= 0)
-    {
-      std::cerr << "Failed sending mavlink message to QGC: " << strerror(errno) << std::endl;
-    }
-  }
-
-  if (sdk_socket_fd_ > 0) {
-    len = sendto(sdk_socket_fd_, buffer, packetlen, 0, (struct sockaddr *)&remote_sdk_addr_, remote_sdk_addr_len_);
-    if (len <= 0)
-    {
-      std::cerr << "Failed sending mavlink message to SDK: " << strerror(errno) << std::endl;
-    }
-  }
-}
-
 void MavlinkInterface::send_mavlink_message(const mavlink_message_t *message)
 {
   assert(message != nullptr);
@@ -624,42 +494,23 @@ void MavlinkInterface::send_mavlink_message(const mavlink_message_t *message)
     return;
   }
 
-  if (serial_enabled_) {
+  uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+  int packetlen = mavlink_msg_to_send_buffer(buffer, message);
 
-    if (!is_serial_open()) {
-      std::cerr << "Serial port closed! " << std::endl;
-      return;
+  if (fds_[CONNECTION_FD].fd > 0) {
+    ssize_t len;
+    if (use_tcp_) {
+      len = send(fds_[CONNECTION_FD].fd, buffer, packetlen, 0);
+    } else {
+      len = sendto(fds_[CONNECTION_FD].fd, buffer, packetlen, 0, (struct sockaddr *)&remote_simulator_addr_, remote_simulator_addr_len_);
     }
-
-    {
-      std::lock_guard<std::recursive_mutex> lock(mutex_);
-
-      if (tx_q_.size() >= MAX_TXQ_SIZE) {
-        std::cout << "Tx queue overflow" << std::endl;
-      }
-      tx_q_.emplace_back(message);
-    }
-    io_service_.post(std::bind(&MavlinkInterface::do_serial_write, this, true));
-
-  } else {
-    uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-    int packetlen = mavlink_msg_to_send_buffer(buffer, message);
-
-    if (fds_[CONNECTION_FD].fd > 0) {
-      ssize_t len;
-      if (use_tcp_) {
-        len = send(fds_[CONNECTION_FD].fd, buffer, packetlen, 0);
-      } else {
-        len = sendto(fds_[CONNECTION_FD].fd, buffer, packetlen, 0, (struct sockaddr *)&remote_simulator_addr_, remote_simulator_addr_len_);
-      }
-      if (len < 0) {
-        if (received_first_actuator_) {
-          std::cerr << "Failed sending mavlink message: " << strerror(errno) << std::endl;
-          if (errno == ECONNRESET || errno == EPIPE) {
-            if (use_tcp_) { // udp socket remains alive
-              std::cerr << "Closing connection." << std::endl;
-              close_conn_ = true;
-            }
+    if (len < 0) {
+      if (received_first_actuator_) {
+        std::cerr << "Failed sending mavlink message: " << strerror(errno) << std::endl;
+        if (errno == ECONNRESET || errno == EPIPE) {
+          if (use_tcp_) { // udp socket remains alive
+            std::cerr << "Closing connection." << std::endl;
+            close_conn_ = true;
           }
         }
       }
@@ -667,141 +518,27 @@ void MavlinkInterface::send_mavlink_message(const mavlink_message_t *message)
   }
 }
 
-void MavlinkInterface::open_serial() {
-  try{
-    serial_dev_.open(device_);
-    serial_dev_.set_option(boost::asio::serial_port_base::baud_rate(baudrate_));
-    serial_dev_.set_option(boost::asio::serial_port_base::character_size(8));
-    serial_dev_.set_option(boost::asio::serial_port_base::parity(boost::asio::serial_port_base::parity::none));
-    serial_dev_.set_option(boost::asio::serial_port_base::stop_bits(boost::asio::serial_port_base::stop_bits::one));
-    serial_dev_.set_option(boost::asio::serial_port_base::flow_control(boost::asio::serial_port_base::flow_control::none));
-    std::cout << "Opened serial device " << device_ << std::endl;
-  }
-  catch (boost::system::system_error &err) {
-    std::cerr <<"Error opening serial device: " << err.what() << std::endl;
-  }
-}
-
 void MavlinkInterface::close()
 {
-  if(serial_enabled_) {
-    ::close(qgc_socket_fd_);
-    ::close(sdk_socket_fd_);
+  // Shutdown receiver side
+  shutdown(fds_[CONNECTION_FD].fd, SHUT_RD);
 
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
-    if (!is_serial_open())
-      return;
+  if (receiver_thread_.joinable())
+    receiver_thread_.join();
 
-    io_service_.stop();
-    serial_dev_.close();
-
-    if (io_thread_.joinable())
-      io_thread_.join();
-
-  } else {
-
-    // Shutdown receiver side
-    shutdown(fds_[CONNECTION_FD].fd, SHUT_RD);
-
-    if (receiver_thread_.joinable())
-      receiver_thread_.join();
-
-    if (sender_thread_.joinable()) {
-      sender_cv_.notify_one();
-      sender_thread_.join();
-    }
-
-    ::close(fds_[CONNECTION_FD].fd);
-    fds_[CONNECTION_FD] = { 0, 0, 0 };
-    fds_[CONNECTION_FD].fd = -1;
-
-    received_first_actuator_ = false;
-
+  if (sender_thread_.joinable()) {
+    sender_cv_.notify_one();
+    sender_thread_.join();
   }
+
+  ::close(fds_[CONNECTION_FD].fd);
+  fds_[CONNECTION_FD] = { 0, 0, 0 };
+  fds_[CONNECTION_FD].fd = -1;
+
+  received_first_actuator_ = false;
 }
 
-void MavlinkInterface::do_serial_write(bool check_tx_state){
-  if (check_tx_state && tx_in_progress_)
-    return;
 
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  if (tx_q_.empty())
-    return;
-
-  tx_in_progress_ = true;
-  auto &buf_ref = tx_q_.front();
-
-  serial_dev_.async_write_some(
-    boost::asio::buffer(buf_ref.dpos(), buf_ref.nbytes()), [this, &buf_ref] (boost::system::error_code error,   size_t bytes_transferred)
-    {
-      assert(bytes_transferred <= buf_ref.len);
-      if(error) {
-        std::cerr << "Serial error: " << error.message() << std::endl;
-      return;
-      }
-
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
-
-    if (tx_q_.empty()) {
-      tx_in_progress_ = false;
-      return;
-    }
-
-    buf_ref.pos += bytes_transferred;
-    if (buf_ref.nbytes() == 0) {
-      tx_q_.pop_front();
-    }
-
-    if (!tx_q_.empty()) {
-      do_serial_write(false);
-    }
-    else {
-      tx_in_progress_ = false;
-    }
-  });
-}
-
-void MavlinkInterface::do_serial_read(void)
-{
-  serial_dev_.async_read_some(boost::asio::buffer(rx_buf_), boost::bind(
-      &MavlinkInterface::parse_serial_buffer, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred
-      )
-  );
-}
-
-// Based on MAVConnInterface::parse_buffer in MAVROS
-void MavlinkInterface::parse_serial_buffer(const boost::system::error_code& err, std::size_t bytes_t){
-  mavlink_status_t status;
-  mavlink_message_t message;
-  uint8_t *buf = this->rx_buf_.data();
-
-  assert(rx_buf_.size() >= bytes_t);
-
-  for(; bytes_t > 0; bytes_t--)
-  {
-    auto c = *buf++;
-
-    auto msg_received = static_cast<Framing>(mavlink_frame_char_buffer(&m_buffer_, &m_status_, c, &message, &status));
-    if (msg_received == Framing::bad_crc || msg_received == Framing::bad_signature) {
-      _mav_parse_error(&m_status_);
-      m_status_.msg_received = MAVLINK_FRAMING_INCOMPLETE;
-      m_status_.parse_state = MAVLINK_PARSE_STATE_IDLE;
-      if (c == MAVLINK_STX) {
-        m_status_.parse_state = MAVLINK_PARSE_STATE_GOT_STX;
-        m_buffer_.len = 0;
-        mavlink_start_checksum(&m_buffer_);
-      }
-    }
-
-    if (msg_received != Framing::incomplete) {
-      if (hil_mode_) {
-        forward_mavlink_message(&message);
-      }
-      handle_message(&message);
-    }
-  }
-  do_serial_read();
-}
 
 void MavlinkInterface::onSigInt() {
   gotSigInt_ = true;

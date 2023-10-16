@@ -65,7 +65,8 @@
 #include <gz/sim/components/Pose.hh>
 
 #include <gz/transport/Node.hh>
-#include <gz/msgs/imu.pb.h>
+#include <gz/msgs.hh>
+#include <gz/math.hh>
 
 #include <common.h>
 
@@ -86,6 +87,7 @@ static const std::string kDefaultNamespace = "";
 // ConsPtr passing, such that the original commands don't have to go n_motors-times over the wire.
 static const std::string kDefaultMotorVelocityReferencePubTopic = "/gazebo/command/motor_speed";
 
+static const std::string kDefaultPoseTopic = "/pose";
 static const std::string kDefaultImuTopic = "/imu";
 static const std::string kDefaultOpticalFlowTopic = "/px4flow/link/opticalFlow";
 static const std::string kDefaultIRLockTopic = "/camera/link/irlock";
@@ -93,11 +95,6 @@ static const std::string kDefaultGPSTopic = "/gps";
 static const std::string kDefaultVisionTopic = "/vision_odom";
 static const std::string kDefaultMagTopic = "/magnetometer";
 static const std::string kDefaultBarometerTopic = "/air_pressure";
-
-static const std::string kDefaultImuSensorName = "imu_sensor";
-static const std::string kDefaultGPSSensorName= "gps";
-static const std::string kDefaultMagSensorName = "mag_sensor";
-static const std::string kDefaultBarometerSensorName = "air_pressure_sensor";
 
 namespace mavlink_interface
 {
@@ -132,7 +129,6 @@ namespace mavlink_interface
       float protocol_version_{2.0};
 
       std::string namespace_{kDefaultNamespace};
-      std::string motor_velocity_reference_pub_topic_{kDefaultMotorVelocityReferencePubTopic};
       std::string mavlink_control_sub_topic_;
       std::string link_name_;
 
@@ -141,12 +137,12 @@ namespace mavlink_interface
       bool use_left_elevon_pid_{false};
       bool use_right_elevon_pid_{false};
 
+      void PoseCallback(const gz::msgs::Pose_V &_msg);
       void ImuCallback(const gz::msgs::IMU &_msg);
       void BarometerCallback(const gz::msgs::FluidPressure &_msg);
       void MagnetometerCallback(const gz::msgs::Magnetometer &_msg);
       void GpsCallback(const gz::msgs::NavSat &_msg);
       void SendSensorMessages(const gz::sim::UpdateInfo &_info);
-      void SendGroundTruth();
       void PublishRotorVelocities(gz::sim::EntityComponentManager &_ecm,
           const Eigen::VectorXd &_vels);
       void handle_actuator_controls(const gz::sim::UpdateInfo &_info);
@@ -156,6 +152,8 @@ namespace mavlink_interface
       bool resolveHostName();
       void ResolveWorker();
       float AddSimpleNoise(float value, float mean, float stddev);
+      void RotateQuaternion(gz::math::Quaterniond &q_FRD_to_NED,
+        const gz::math::Quaterniond q_FLU_to_ENU);
 
       static const unsigned n_out_max = 16;
 
@@ -170,19 +168,14 @@ namespace mavlink_interface
       /// \brief gz communication node.
       gz::transport::Node node;
 
+      std::string pose_sub_topic_{kDefaultPoseTopic};
       std::string imu_sub_topic_{kDefaultImuTopic};
       std::string opticalFlow_sub_topic_{kDefaultOpticalFlowTopic};
       std::string irlock_sub_topic_{kDefaultIRLockTopic};
       std::string gps_sub_topic_{kDefaultGPSTopic};
-      std::string groundtruth_sub_topic_;
       std::string vision_sub_topic_{kDefaultVisionTopic};
       std::string mag_sub_topic_{kDefaultMagTopic};
       std::string baro_sub_topic_{kDefaultBarometerTopic};
-
-      std::string imu_sensor_name_{kDefaultImuSensorName};
-      std::string gps_sensor_name_{kDefaultGPSSensorName};
-      std::string mag_sensor_name_{kDefaultMagSensorName};
-      std::string baro_sensor_name_{kDefaultBarometerSensorName};
 
       std::mutex last_imu_message_mutex_ {};
 
@@ -192,15 +185,10 @@ namespace mavlink_interface
       std::chrono::steady_clock::duration last_imu_time_{0};
       std::chrono::steady_clock::duration lastControllerUpdateTime{0};
       std::chrono::steady_clock::duration last_actuator_time_{0};
-      std::chrono::steady_clock::duration last_heartbeat_sent_time_{0};
 
       bool mag_updated_{false};
       bool baro_updated_;
       bool diff_press_updated_;
-
-      double groundtruth_lat_rad{0.0};
-      double groundtruth_lon_rad{0.0};
-      double groundtruth_altitude{0.0};
 
       double imu_update_interval_ = 0.004; ///< Used for non-lockstep
 
@@ -218,13 +206,9 @@ namespace mavlink_interface
       double sonar_distance;
 
       bool enable_lockstep_ = false;
-      bool serial_enabled_;
       double speed_factor_ = 1.0;
       uint8_t previous_imu_seq_ = 0;
       uint8_t update_skip_factor_ = 1;
-
-      bool hil_mode_{false};
-      bool hil_state_level_{false};
 
       std::string mavlink_hostname_str_;
       struct hostent *hostptr_{nullptr};
