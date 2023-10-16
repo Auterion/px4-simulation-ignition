@@ -1,4 +1,6 @@
 #include "mavlink_interface.h"
+MavlinkInterface::MavlinkInterface() {
+}
 
 MavlinkInterface::~MavlinkInterface() {
   close();
@@ -333,9 +335,9 @@ void MavlinkInterface::SendSensorMessages(uint64_t time_usec) {
   sensor_msg_mutex_.unlock();
 
   mavlink_message_t msg;
-  mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
+  mavlink_msg_hil_sensor_encode_chan(254, 25, MAVLINK_COMM_0, &msg, &sensor_msg);
   // Override default global mavlink channel status with instance specific status
-  FinalizeOutgoingMessage(&msg, 1, 200,
+  FinalizeOutgoingMessage(&msg, 254, 25,
     MAVLINK_MSG_ID_HIL_SENSOR_MIN_LEN,
     MAVLINK_MSG_ID_HIL_SENSOR_LEN,
     MAVLINK_MSG_ID_HIL_SENSOR_CRC);
@@ -396,7 +398,7 @@ void MavlinkInterface::ReadMAVLinkMessages()
     //std::cerr << "[MavlinkInterface] check message from msg buffer.. " << std::endl;
     auto msg = PopRecvMessage();
     if (msg) {
-      //std::cerr << "[MavlinkInterface] ReadMAVLinkMessages -> handle_message " << std::endl;
+      //std::cout << "[MavlinkInterface] ReadMAVLinkMessages -> handle_message " << std::endl;
       handle_message(msg.get());
     }
   } while( (!enable_lockstep_ && !IsRecvBuffEmpty()) ||
@@ -481,7 +483,6 @@ void MavlinkInterface::handle_actuator_controls(mavlink_message_t *msg)
   for (int i = 0; i < input_reference_.size(); i++) {
     input_reference_[i] = controls.controls[i];
   }
-
   received_actuator_ = true;
   received_first_actuator_ = true;
 }

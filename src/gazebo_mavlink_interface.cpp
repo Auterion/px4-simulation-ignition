@@ -40,10 +40,7 @@ GZ_ADD_PLUGIN(
 using namespace mavlink_interface;
 
 GazeboMavlinkInterface::GazeboMavlinkInterface() :
-    input_offset_ {},
     input_scaling_ {},
-    zero_position_disarmed_ {},
-    zero_position_armed_ {},
     input_index_ {}
     {
       mavlink_interface_ = std::make_shared<MavlinkInterface>();
@@ -276,14 +273,14 @@ void GazeboMavlinkInterface::PoseCallback(const gz::msgs::Pose_V &_msg){
       hil_state_quat.attitude_quaternion[2] = q_nb.Y();
       hil_state_quat.attitude_quaternion[3] = q_nb.Z();
 
-      hil_state_quat.lat = pose_position.y() * 1e3;
-      hil_state_quat.lon = pose_position.x() * 1e3;
+      hil_state_quat.lat = pose_position.x() * 1e3;
+      hil_state_quat.lon = pose_position.y() * 1e3;
       hil_state_quat.alt = pose_position.z() * 1e3;
 
       mavlink_message_t msg;
-      mavlink_msg_hil_state_quaternion_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_state_quat);
+      mavlink_msg_hil_state_quaternion_encode_chan(254, 25, MAVLINK_COMM_0, &msg, &hil_state_quat);
       // Override default global mavlink channel status with instance specific status
-      mavlink_interface_->FinalizeOutgoingMessage(&msg, 1, 200,
+      mavlink_interface_->FinalizeOutgoingMessage(&msg, 254, 25,
         MAVLINK_MSG_ID_HIL_STATE_QUATERNION_MIN_LEN,
         MAVLINK_MSG_ID_HIL_STATE_QUATERNION_LEN,
         MAVLINK_MSG_ID_HIL_STATE_QUATERNION_CRC);
@@ -369,9 +366,9 @@ void GazeboMavlinkInterface::GpsCallback(const gz::msgs::NavSat &_msg) {
 
   // send HIL_GPS Mavlink msg
   mavlink_message_t msg;
-  mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_gps_msg);
+  mavlink_msg_hil_gps_encode_chan(254, 25, MAVLINK_COMM_0, &msg, &hil_gps_msg);
   // Override default global mavlink channel status with instance specific status
-  mavlink_interface_->FinalizeOutgoingMessage(&msg, 1, 200,
+  mavlink_interface_->FinalizeOutgoingMessage(&msg, 254, 25,
     MAVLINK_MSG_ID_HIL_GPS_MIN_LEN,
     MAVLINK_MSG_ID_HIL_GPS_LEN,
     MAVLINK_MSG_ID_HIL_GPS_CRC);
@@ -383,38 +380,29 @@ void GazeboMavlinkInterface::SendSensorMessages(const gz::sim::UpdateInfo &_info
   const gz::msgs::IMU last_imu_message = last_imu_message_;
   last_imu_message_mutex_.unlock();
 
-  gz::math::Quaterniond q_gr = gz::math::Quaterniond(
-    last_imu_message.orientation().w(),
-    last_imu_message.orientation().x(),
-    last_imu_message.orientation().y(),
-    last_imu_message.orientation().z());
-
-/*
-  bool should_send_imu = false;
-  if (!enable_lockstep_) {
-    std::chrono::steady_clock::duration current_time = _info.simTime;
-
-    double dt = (current_time - last_imu_time_).count();
-
-    if (imu_update_interval_!=0 && dt >= imu_update_interval_) {
-      should_send_imu = true;
-      last_imu_time_ = current_time;
-    }
-  }
-*/
 
   // send always accel and gyro data (not dependent of the bitmask)
   // required so to keep the timestamps on sync and the lockstep can
   // work properly
+  // gz::math::Vector3d accel_b = q_FLU_to_FRD.RotateVector(gz::math::Vector3d(
+  //   AddSimpleNoise(last_imu_message.linear_acceleration().x(), 0, 0.006),
+  //   AddSimpleNoise(last_imu_message.linear_acceleration().y(), 0, 0.006),
+  //   AddSimpleNoise(last_imu_message.linear_acceleration().z(), 0, 0.030)));
+
+  // gz::math::Vector3d gyro_b = q_FLU_to_FRD.RotateVector(gz::math::Vector3d(
+  //   AddSimpleNoise(last_imu_message.angular_velocity().x(), 0, 0.001),
+  //   AddSimpleNoise(last_imu_message.angular_velocity().y(), 0, 0.001),
+  //   AddSimpleNoise(last_imu_message.angular_velocity().z(), 0, 0.001)));
+
   gz::math::Vector3d accel_b = q_FLU_to_FRD.RotateVector(gz::math::Vector3d(
-    AddSimpleNoise(last_imu_message.linear_acceleration().x(), 0, 0.006),
-    AddSimpleNoise(last_imu_message.linear_acceleration().y(), 0, 0.006),
-    AddSimpleNoise(last_imu_message.linear_acceleration().z(), 0, 0.030)));
+    last_imu_message.linear_acceleration().x(),
+    last_imu_message.linear_acceleration().y(),
+    last_imu_message.linear_acceleration().z()));
 
   gz::math::Vector3d gyro_b = q_FLU_to_FRD.RotateVector(gz::math::Vector3d(
-    AddSimpleNoise(last_imu_message.angular_velocity().x(), 0, 0.001),
-    AddSimpleNoise(last_imu_message.angular_velocity().y(), 0, 0.001),
-    AddSimpleNoise(last_imu_message.angular_velocity().z(), 0, 0.001)));
+    last_imu_message.angular_velocity().x(),
+    last_imu_message.angular_velocity().y(),
+    last_imu_message.angular_velocity().z()));
 
   uint64_t time_usec = std::chrono::duration_cast<std::chrono::duration<uint64_t>>(_info.simTime * 1e6).count();
   SensorData::Imu imu_data;
@@ -440,14 +428,12 @@ void GazeboMavlinkInterface::handle_actuator_controls(const gz::sim::UpdateInfo 
 
   for (int i = 0; i < input_reference_.size(); i++) {
     if (armed) {
-      input_reference_[i] = (actuator_controls[input_index_[i]] + input_offset_[i])
-          * input_scaling_(i) + zero_position_armed_[i];
+      input_reference_[i] = actuator_controls[input_index_[i]] * input_scaling_(i);
     } else {
-      input_reference_[i] = zero_position_disarmed_[i];
+      input_reference_[i] = 0;
       // std::cout << input_reference_ << ", ";
     }
   }
-  // std::cout << "Input Reference: " << input_reference_.transpose() << std::endl;
   received_first_actuator_ = mavlink_interface_->GetReceivedFirstActuator();
 }
 

@@ -59,7 +59,7 @@ static const uint32_t kDefaultMavlinkUdpRemotePort = 14560;
 static const uint32_t kDefaultMavlinkUdpLocalPort = 0;
 static const uint32_t kDefaultMavlinkTcpPort = 4560;
 
-static const size_t kMaxRecvBufferSize = 20;
+static const size_t kMaxRecvBufferSize = 30;
 static const size_t kMaxSendBufferSize = 30;
 
 using lock_guard = std::lock_guard<std::recursive_mutex>;
